@@ -2,7 +2,6 @@
 
 Web application for managing user access permissions to organizational resources, with Active Directory integration.
 
-Built for **AKNEED** (Αρχή Καταπολέμησης της Νομιμοποίησης Εσόδων από Εγκληματικές Δραστηριότητες).
 
 ## Features
 
@@ -260,10 +259,3 @@ Send permission reports (per user or per department) as PDF or Excel attachments
 
 *Coming soon*
 
-## License
-
-This project is proprietary software developed for AKNEED.
-
----
-
-Developed by **Ypodiefthinsi Psifiakis Diakivernisis - Tmima Anaptixis kai Ypostirixis Efarmogon** (Digital Governance Subdivision - Application Development & Support Department)
