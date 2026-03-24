@@ -1,0 +1,125 @@
+/* Permission Register — Custom Styles */
+
+/* Sidebar */
+#sidebar {
+    transition: margin-left 0.25s ease, opacity 0.25s ease;
+    min-width: 250px;
+    width: 250px;
+}
+#sidebar.hidden {
+    margin-left: -250px;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.nav-link.active {
+    background-color: rgba(13, 110, 253, 0.25) !important;
+    color: #fff !important;
+}
+
+/* Cards */
+.hover-shadow,
+.card-hover {
+    transition: box-shadow 0.15s ease, transform 0.15s ease;
+}
+.hover-shadow:hover,
+.card-hover:hover {
+    box-shadow: 0 .5rem 1.5rem rgba(0,0,0,.15) !important;
+    transform: translateY(-2px);
+}
+.card-hover:hover .bi-chevron-right {
+    color: #0d6efd !important;
+}
+
+/* Tables */
+.table th {
+    font-weight: 600;
+    font-size: .8rem;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+}
+
+/* Custom table header — matches sidebar/header blue */
+.table thead.thead-app {
+    background-color: #2c5f8a;
+    color: #fff;
+}
+.table thead.thead-app th {
+    background-color: inherit;
+    color: inherit;
+    border-color: rgba(255,255,255,.12);
+}
+
+/* Sortable columns */
+th[data-sort] {
+    cursor: pointer;
+    user-select: none;
+    position: relative;
+    padding-right: 1.4em !important;
+    white-space: nowrap;
+    transition: background-color .15s ease;
+}
+th[data-sort]:hover {
+    background-color: rgba(0,0,0,.06) !important;
+}
+th[data-sort]::after {
+    content: '⇅';
+    position: absolute;
+    right: .4em;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: .6rem;
+    opacity: .35;
+}
+th[data-sort].sort-asc::after {
+    content: '▲';
+    opacity: .85;
+}
+th[data-sort].sort-desc::after {
+    content: '▼';
+    opacity: .85;
+}
+
+/* Hover on dark/coloured headers */
+.thead-app th[data-sort]:hover,
+.table-dark th[data-sort]:hover {
+    background-color: rgba(255,255,255,.15) !important;
+}
+
+/* Autocomplete */
+#adSuggestions .list-group-item,
+#emailUserSuggestions .list-group-item {
+    cursor: pointer;
+    font-size: .875rem;
+}
+#adSuggestions .list-group-item:hover,
+#emailUserSuggestions .list-group-item:hover {
+    background-color: #e7f1ff;
+}
+
+/* Badges */
+.badge { font-weight: 500; }
+
+/* z-index for dropdowns over tables */
+.z-3 { z-index: 1030; }
+
+/* App header & footer */
+.app-header { z-index: 1040; }
+.app-footer { flex-shrink: 0; }
+
+/* Print styles */
+@media print {
+    #sidebar, .navbar, .btn, .modal, .border-top { display: none !important; }
+    #page-content-wrapper { margin: 0 !important; padding: 0 !important; }
+    #wrapper { display: block !important; }
+    .card { box-shadow: none !important; border: 1px solid #dee2e6 !important; break-inside: avoid; }
+    .card-header { background: #f8f9fa !important; }
+    .badge { border: 1px solid #999 !important; }
+    a { text-decoration: none !important; color: #000 !important; }
+    .table { font-size: 0.8rem !important; }
+    .app-header { border-bottom: 2px solid #000 !important; }
+    .app-footer { background: #fff !important; color: #333 !important; border-top: 1px solid #ccc !important; }
+}
+
+/* Collapse transition for audit details */
+.collapse { transition: none; }

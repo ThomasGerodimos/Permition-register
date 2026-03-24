@@ -1,0 +1,27 @@
+# ============================================================
+# Permission Register - Git Ignore
+# ============================================================
+
+# Environment files (contain credentials!)
+.env
+
+# Composer dependencies
+/vendor/
+
+# Storage / logs
+/storage/logs/*.log
+
+# IDE / Editor files
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# OS files
+*.tmp
+*.bak
+*.orig
