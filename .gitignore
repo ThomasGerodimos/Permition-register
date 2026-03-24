@@ -11,6 +11,9 @@
 # Storage / logs
 /storage/logs/*.log
 
+# Claude Code
+.claude/
+
 # IDE / Editor files
 .idea/
 .vscode/
