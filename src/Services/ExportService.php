@@ -163,8 +163,12 @@ class ExportService
         $pdf->Cell(0, 6, 'Εκτύπωση: ' . date('d/m/Y H:i'), 0, 1, 'C');
         $pdf->Ln(3);
 
-        // Build HTML table — TCPDF handles column wrapping automatically
-        $html = $this->buildPdfHtmlTable($rows);
+        // Build HTML — grouped by resource if department filter, flat table otherwise
+        if (!empty($filters['department'])) {
+            $html = $this->buildDeptPdfHtml($rows);
+        } else {
+            $html = $this->buildPdfHtmlTable($rows);
+        }
         $pdf->SetFont('dejavusans', '', 7);
         $pdf->writeHTML($html, true, false, true, false, '');
 
@@ -220,7 +224,11 @@ class ExportService
         $pdf->Cell(0, 6, 'Εκτύπωση: ' . date('d/m/Y H:i'), 0, 1, 'C');
         $pdf->Ln(3);
 
-        $html = $this->buildPdfHtmlTable($rows);
+        if (!empty($filters['department'])) {
+            $html = $this->buildDeptPdfHtml($rows);
+        } else {
+            $html = $this->buildPdfHtmlTable($rows);
+        }
         $pdf->SetFont('dejavusans', '', 7);
         $pdf->writeHTML($html, true, false, true, false, '');
 
@@ -228,6 +236,80 @@ class ExportService
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────
+
+    /**
+     * Build grouped-by-resource PDF HTML (for department exports).
+     * Mimics the on-screen layout: Resource header → permission level badge → users table.
+     */
+    private function buildDeptPdfHtml(array $rows): string
+    {
+        // Group by resource, then by permission level
+        $byResource = [];
+        foreach ($rows as $row) {
+            $key = $row['resource_name'] ?? '';
+            if (!isset($byResource[$key])) {
+                $byResource[$key] = [
+                    'type_label' => $row['type_label'] ?? '',
+                    'levels'     => [],
+                ];
+            }
+            $level = $row['permission_level'] ?? '';
+            $byResource[$key]['levels'][$level][] = $row;
+        }
+
+        $html = '';
+        $e = function($s) { return htmlspecialchars((string)($s ?? ''), ENT_QUOTES, 'UTF-8'); };
+
+        foreach ($byResource as $resName => $res) {
+            // Resource header
+            $totalUsers = 0;
+            foreach ($res['levels'] as $users) { $totalUsers += count($users); }
+
+            $html .= '<table cellpadding="3" cellspacing="0" style="margin-bottom:2mm;">';
+            $html .= '<tr style="background-color:#2c5f8a; color:#ffffff; font-size:9pt;">';
+            $html .= '<td width="70%"><b>' . $e($resName) . '</b>'
+                    . '  <span style="font-size:7pt; color:#d0e0f0;">(' . $e($res['type_label']) . ')</span></td>';
+            $html .= '<td width="30%" align="right" style="font-size:7pt;">' . $totalUsers . ' στελέχη</td>';
+            $html .= '</tr></table>';
+
+            // Each permission level
+            foreach ($res['levels'] as $level => $users) {
+                // Permission level sub-header
+                $html .= '<table cellpadding="2" cellspacing="0" style="margin-bottom:1mm;">';
+                $html .= '<tr style="background-color:#e8f4fd; font-size:8pt;">';
+                $html .= '<td><b style="color:#0d6efd;">' . $e($level) . '</b>'
+                        . '  <span style="font-size:7pt; color:#666;">' . count($users) . ' στελέχη</span></td>';
+                $html .= '</tr></table>';
+
+                // Users table
+                $html .= '<table border="0.5" cellpadding="3" cellspacing="0" style="margin-bottom:3mm;">';
+                $html .= '<tr style="background-color:#f0f0f0; font-weight:bold; font-size:7pt;">';
+                $html .= '<th width="25%">Ονοματεπώνυμο</th>';
+                $html .= '<th width="15%">Username</th>';
+                $html .= '<th width="20%">Θέση</th>';
+                $html .= '<th width="25%">Email</th>';
+                $html .= '<th width="15%">Ημ/νία</th>';
+                $html .= '</tr>';
+
+                $fill = false;
+                foreach ($users as $u) {
+                    $bg = $fill ? ' style="background-color:#fafcff; font-size:7pt;"' : ' style="font-size:7pt;"';
+                    $html .= '<tr' . $bg . '>';
+                    $html .= '<td width="25%">' . $e($u['full_name']) . '</td>';
+                    $html .= '<td width="15%">' . $e($u['username']) . '</td>';
+                    $html .= '<td width="20%">' . $e($u['job_title'] ?? '') . '</td>';
+                    $html .= '<td width="25%">' . $e($u['email']) . '</td>';
+                    $html .= '<td width="15%">' . substr($u['granted_at'] ?? '', 0, 10) . '</td>';
+                    $html .= '</tr>';
+                    $fill = !$fill;
+                }
+
+                $html .= '</table>';
+            }
+        }
+
+        return $html;
+    }
 
     private function buildPdfHtmlTable(array $rows): string
     {

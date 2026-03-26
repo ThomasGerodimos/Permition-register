@@ -30,7 +30,7 @@ class Permission
 
         $offset = ($page - 1) * $perPage;
         $rows   = $this->db->fetchAll(
-            "SELECT p.*, u.full_name, u.username, u.department, u.email,
+            "SELECT p.*, u.full_name, u.username, u.department, u.email, u.job_title,
                     r.name AS resource_name, r.location,
                     rt.label AS type_label, rt.name AS type_name, rt.icon AS type_icon,
                     gb.full_name AS granted_by_name
