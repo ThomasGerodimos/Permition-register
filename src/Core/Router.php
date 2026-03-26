@@ -21,13 +21,13 @@ class Router
         // Strip query string
         $uri = parse_url($uri, PHP_URL_PATH);
 
-        // Remove base path (/permissions/public or /permissions)
-        $basePaths = ['/permissions/public', '/permissions'];
-        foreach ($basePaths as $base) {
-            if (str_starts_with($uri, $base)) {
-                $uri = substr($uri, strlen($base));
-                break;
-            }
+        // Dynamically determine base path from APP_URL
+        $appUrl = \App\Core\Config::appUrl();
+        $basePath = rtrim(parse_url($appUrl, PHP_URL_PATH) ?? '', '/');
+
+        // Remove base path (works for both /permissions and / VirtualHost)
+        if ($basePath && str_starts_with($uri, $basePath)) {
+            $uri = substr($uri, strlen($basePath));
         }
 
         $uri = '/' . ltrim($uri, '/');
