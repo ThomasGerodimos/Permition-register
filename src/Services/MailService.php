@@ -10,12 +10,18 @@ class MailService
 {
     private PHPMailer $mailer;
     private array $cfg;
+    private ?GraphMailService $graphMailer = null;
 
     public function __construct()
     {
-        $this->cfg    = require ROOT_PATH . '/config/mail.php';
-        $this->mailer = new PHPMailer(true);
-        $this->configure();
+        $this->cfg = require ROOT_PATH . '/config/mail.php';
+
+        if (!empty($this->cfg['oauth']['enabled'])) {
+            $this->graphMailer = new GraphMailService($this->cfg);
+        } else {
+            $this->mailer = new PHPMailer(true);
+            $this->configure();
+        }
     }
 
     private function configure(): void
@@ -61,6 +67,11 @@ class MailService
         ?string $attachPath = null,
         ?string $attachName = null
     ): void {
+        if ($this->graphMailer) {
+            $this->graphMailer->send($to, $toName, $subject, $htmlBody, $attachPath, $attachName);
+            return;
+        }
+
         try {
             $this->mailer->clearAddresses();
             $this->mailer->clearAttachments();
