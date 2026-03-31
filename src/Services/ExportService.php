@@ -8,6 +8,19 @@ use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use PhpOffice\PhpSpreadsheet\Style\{Fill, Border, Alignment, Font};
 use TCPDF;
 
+/**
+ * Custom TCPDF subclass with page numbering footer.
+ */
+class PermRegPdf extends TCPDF
+{
+    public function Footer(): void
+    {
+        $this->SetY(-12);
+        $this->SetFont('dejavusans', 'I', 7);
+        $this->Cell(0, 10, 'Σελίδα ' . $this->getAliasNumPage() . ' / ' . $this->getAliasNbPages(), 0, 0, 'C');
+    }
+}
+
 class ExportService
 {
     private Permission $permModel;
@@ -146,14 +159,14 @@ class ExportService
         $rows = $this->getData($filters);
         $appName = \App\Core\Config::get('app_name', 'Μητρώο Δικαιωμάτων');
 
-        $pdf = new TCPDF('L', PDF_UNIT, PDF_PAGE_FORMAT, true, 'UTF-8', false);
+        $pdf = new PermRegPdf('L', PDF_UNIT, PDF_PAGE_FORMAT, true, 'UTF-8', false);
         $pdf->SetCreator($appName);
         $pdf->SetAuthor($appName);
         $pdf->SetTitle($title);
         $pdf->setPrintHeader(false);
-        $pdf->setPrintFooter(false);
+        $pdf->setPrintFooter(true);
         $pdf->SetMargins(10, 10, 10);
-        $pdf->SetAutoPageBreak(true, 10);
+        $pdf->SetAutoPageBreak(true, 15);
         $pdf->AddPage();
 
         // Title
@@ -209,13 +222,13 @@ class ExportService
         $rows    = $this->getData($filters);
         $appName = \App\Core\Config::get('app_name', 'Μητρώο Δικαιωμάτων');
 
-        $pdf = new TCPDF('L', PDF_UNIT, PDF_PAGE_FORMAT, true, 'UTF-8', false);
+        $pdf = new PermRegPdf('L', PDF_UNIT, PDF_PAGE_FORMAT, true, 'UTF-8', false);
         $pdf->SetCreator($appName);
         $pdf->SetTitle($title);
         $pdf->setPrintHeader(false);
-        $pdf->setPrintFooter(false);
+        $pdf->setPrintFooter(true);
         $pdf->SetMargins(10, 10, 10);
-        $pdf->SetAutoPageBreak(true, 10);
+        $pdf->SetAutoPageBreak(true, 15);
         $pdf->AddPage();
 
         $pdf->SetFont('dejavusans', 'B', 14);

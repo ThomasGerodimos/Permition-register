@@ -3,7 +3,7 @@
 // APP_URL may already be set by inline script in form.php
 if (typeof APP_URL === 'undefined') {
     var APP_URL = document.querySelector('meta[name="app-url"]')?.content
-        || window.location.origin + '/permissions';
+        || window.location.origin;
 }
 
 // ── Sidebar toggle ──────────────────────────────────────────────────────────

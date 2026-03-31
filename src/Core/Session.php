@@ -12,7 +12,7 @@ class Session
             session_set_cookie_params([
                 'lifetime' => $config['session_lifetime'] ?? 7200,
                 'path'     => '/',
-                'secure'   => false,
+                'secure'   => str_starts_with(Config::appUrl(), 'https'),
                 'httponly' => true,
                 'samesite' => 'Lax',
             ]);
