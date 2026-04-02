@@ -1,6 +1,7 @@
 <?php
-use App\Core\{View, Config, Csrf};
+use App\Core\{View, Config, Csrf, Session};
 $appUrl = Config::appUrl();
+$canEdit = Session::isAdmin() || Session::isTypeAdmin((int)($resource['resource_type_id'] ?? 0));
 ?>
 
 <!-- Resource Header -->
@@ -23,14 +24,22 @@ $appUrl = Config::appUrl();
                 </div>
             </div>
             <div class="d-flex gap-2">
-                <?php if (!empty($permissions)): ?>
+                <?php if (!empty($permissions) && $canEdit): ?>
+                <button type="button" class="btn btn-sm btn-outline-warning d-none" id="btnBulkExpiry">
+                    <i class="bi bi-calendar-event me-1"></i>Ορισμός Λήξης (<span id="bulkExpiryCount">0</span>)
+                </button>
+                <button type="button" class="btn btn-sm btn-danger d-none" id="btnBulkDelete">
+                    <i class="bi bi-trash3 me-1"></i>Αφαίρεση (<span id="bulkDeleteCount">0</span>)
+                </button>
                 <button type="button" class="btn btn-sm btn-warning" data-bs-toggle="modal" data-bs-target="#cloneModal">
                     <i class="bi bi-clipboard2-data me-1"></i>Αντιγραφή Δικαιωμάτων
                 </button>
                 <?php endif; ?>
+                <?php if ($canEdit): ?>
                 <a href="<?= $appUrl ?>/permissions/bulk" class="btn btn-sm btn-primary">
                     <i class="bi bi-people-fill me-1"></i>Μαζική Ανάθεση
                 </a>
+                <?php endif; ?>
                 <a href="<?= $appUrl ?>/resources" class="btn btn-sm btn-outline-secondary">
                     <i class="bi bi-arrow-left me-1"></i>Πίσω
                 </a>
@@ -90,6 +99,11 @@ $appUrl = Config::appUrl();
         <table class="table table-hover align-middle mb-0">
             <thead class="thead-app">
                 <tr>
+                    <?php if ($canEdit): ?>
+                    <th style="width:40px" class="text-center">
+                        <input type="checkbox" class="form-check-input" id="selectAllPerms" title="Επιλογή όλων">
+                    </th>
+                    <?php endif; ?>
                     <th style="width:40px"></th>
                     <th data-sort="text">Χρήστης</th>
                     <th data-sort="text">Τμήμα</th>
@@ -102,6 +116,13 @@ $appUrl = Config::appUrl();
             <tbody>
             <?php foreach ($users as $i => $p): ?>
             <tr>
+                <?php if ($canEdit): ?>
+                <td class="text-center">
+                    <input type="checkbox" class="form-check-input perm-checkbox" value="<?= $p['id'] ?>"
+                           data-name="<?= View::e($p['full_name'] ?: $p['username']) ?>"
+                           data-level="<?= View::e($level) ?>">
+                </td>
+                <?php endif; ?>
                 <td class="text-muted text-center small"><?= $i + 1 ?></td>
                 <td>
                     <a href="<?= $appUrl ?>/users/<?= $p['user_id'] ?>" class="text-decoration-none fw-semibold">
@@ -136,6 +157,88 @@ $appUrl = Config::appUrl();
     </div>
 </div>
 <?php endforeach; ?>
+
+<!-- Bulk Delete Permissions Modal -->
+<?php if ($canEdit && !empty($permissions)): ?>
+<div class="modal fade" id="bulkDeleteModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="POST" id="bulkDeleteForm" action="<?= $appUrl ?>/resources/<?= $resource['id'] ?>/bulk-delete-permissions">
+                <?= Csrf::field() ?>
+                <div id="bulkDeleteHiddenInputs"></div>
+                <div class="modal-header bg-danger text-white">
+                    <h5 class="modal-title"><i class="bi bi-exclamation-triangle-fill me-1"></i> Μαζική Αφαίρεση Δικαιωμάτων</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Πρόκειται να αφαιρέσετε <strong id="bulkDeleteModalCount">0</strong> δικαιώματα
+                       από τον πόρο <strong><?= View::e($resource['name']) ?></strong>.</p>
+                    <div id="bulkDeleteList" class="small border rounded p-2 mb-3" style="max-height:200px;overflow-y:auto;background:#fafafa;"></div>
+                    <div class="alert alert-warning mb-0 small">
+                        <i class="bi bi-info-circle me-1"></i>
+                        Τα δικαιώματα θα απενεργοποιηθούν (soft delete). Η ενέργεια καταγράφεται στο ιστορικό.
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Ακύρωση</button>
+                    <button type="submit" class="btn btn-danger">
+                        <i class="bi bi-trash3 me-1"></i>Αφαίρεση
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+<?php endif; ?>
+
+<!-- Bulk Set Expiry Modal -->
+<?php if ($canEdit && !empty($permissions)): ?>
+<div class="modal fade" id="bulkExpiryModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="POST" id="bulkExpiryForm" action="<?= $appUrl ?>/resources/<?= $resource['id'] ?>/bulk-set-expiry">
+                <?= Csrf::field() ?>
+                <div id="bulkExpiryHiddenInputs"></div>
+                <div class="modal-header bg-warning">
+                    <h5 class="modal-title"><i class="bi bi-calendar-event me-1"></i> Ορισμός Λήξης Δικαιωμάτων</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Ορισμός λήξης σε <strong id="bulkExpiryModalCount">0</strong> δικαιώματα
+                       του πόρου <strong><?= View::e($resource['name']) ?></strong>.</p>
+                    <div id="bulkExpiryList" class="small border rounded p-2 mb-3" style="max-height:200px;overflow-y:auto;background:#fafafa;"></div>
+
+                    <div class="mb-3">
+                        <div class="form-check mb-2">
+                            <input class="form-check-input" type="radio" name="expiry_action" id="expiryActionSet" value="set" checked>
+                            <label class="form-check-label fw-semibold" for="expiryActionSet">
+                                Ορισμός ημερομηνίας λήξης
+                            </label>
+                        </div>
+                        <input type="date" name="expires_at" id="bulkExpiryDate" class="form-control ms-4" style="max-width:250px;"
+                               min="<?= date('Y-m-d') ?>">
+                    </div>
+
+                    <div class="mb-0">
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="expiry_action" id="expiryActionClear" value="clear">
+                            <label class="form-check-label fw-semibold" for="expiryActionClear">
+                                Αφαίρεση λήξης <span class="text-muted fw-normal">(χωρίς ημερομηνία λήξης)</span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Ακύρωση</button>
+                    <button type="submit" class="btn btn-warning">
+                        <i class="bi bi-check-lg me-1"></i>Εφαρμογή
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+<?php endif; ?>
 
 <?php endif; ?>
 
@@ -241,6 +344,124 @@ $appUrl = Config::appUrl();
 
     typeSelect.addEventListener('change', loadResources);
     document.getElementById('cloneModal').addEventListener('show.bs.modal', loadResources);
+})();
+</script>
+<?php endif; ?>
+
+<?php if ($canEdit && !empty($permissions)): ?>
+<script>
+(function() {
+    var checkboxes     = document.querySelectorAll('.perm-checkbox');
+    var selectAll      = document.getElementById('selectAllPerms');
+    var btnBulkDelete  = document.getElementById('btnBulkDelete');
+    var btnBulkExpiry  = document.getElementById('btnBulkExpiry');
+    var countSpan      = document.getElementById('bulkDeleteCount');
+    var expiryCountSpan = document.getElementById('bulkExpiryCount');
+
+    if (!checkboxes.length || !selectAll || !btnBulkDelete) return;
+
+    function updateUI() {
+        var checked = document.querySelectorAll('.perm-checkbox:checked');
+        var count   = checked.length;
+        countSpan.textContent = count;
+        if (expiryCountSpan) expiryCountSpan.textContent = count;
+        if (count > 0) {
+            btnBulkDelete.classList.remove('d-none');
+            if (btnBulkExpiry) btnBulkExpiry.classList.remove('d-none');
+        } else {
+            btnBulkDelete.classList.add('d-none');
+            if (btnBulkExpiry) btnBulkExpiry.classList.add('d-none');
+        }
+        // Update select-all state
+        selectAll.checked      = count === checkboxes.length && count > 0;
+        selectAll.indeterminate = count > 0 && count < checkboxes.length;
+    }
+
+    // Select all / deselect all
+    selectAll.addEventListener('change', function() {
+        checkboxes.forEach(function(cb) { cb.checked = selectAll.checked; });
+        updateUI();
+    });
+
+    // Individual checkboxes
+    checkboxes.forEach(function(cb) {
+        cb.addEventListener('change', updateUI);
+    });
+
+    // Helper: build user list HTML from checked checkboxes
+    function buildCheckedList(checked) {
+        var listHtml = '';
+        checked.forEach(function(cb) {
+            listHtml += '<div class="py-1 border-bottom"><i class="bi bi-person me-1 text-muted"></i>'
+                      + cb.dataset.name
+                      + ' <span class="badge bg-primary bg-opacity-75 ms-1">' + cb.dataset.level + '</span></div>';
+        });
+        return listHtml;
+    }
+
+    // Bulk delete button → open modal
+    btnBulkDelete.addEventListener('click', function() {
+        var checked  = document.querySelectorAll('.perm-checkbox:checked');
+        var hidden   = document.getElementById('bulkDeleteHiddenInputs');
+        var list     = document.getElementById('bulkDeleteList');
+        var modalCnt = document.getElementById('bulkDeleteModalCount');
+
+        hidden.innerHTML = '';
+        checked.forEach(function(cb) {
+            hidden.innerHTML += '<input type="hidden" name="perm_ids[]" value="' + cb.value + '">';
+        });
+        list.innerHTML       = buildCheckedList(checked);
+        modalCnt.textContent = checked.length;
+
+        var modal = new bootstrap.Modal(document.getElementById('bulkDeleteModal'));
+        modal.show();
+    });
+
+    // Bulk expiry button → open modal
+    if (btnBulkExpiry) {
+        btnBulkExpiry.addEventListener('click', function() {
+            var checked  = document.querySelectorAll('.perm-checkbox:checked');
+            var hidden   = document.getElementById('bulkExpiryHiddenInputs');
+            var list     = document.getElementById('bulkExpiryList');
+            var modalCnt = document.getElementById('bulkExpiryModalCount');
+
+            hidden.innerHTML = '';
+            checked.forEach(function(cb) {
+                hidden.innerHTML += '<input type="hidden" name="perm_ids[]" value="' + cb.value + '">';
+            });
+            list.innerHTML       = buildCheckedList(checked);
+            modalCnt.textContent = checked.length;
+
+            // Reset form state
+            document.getElementById('expiryActionSet').checked = true;
+            document.getElementById('bulkExpiryDate').disabled = false;
+            document.getElementById('bulkExpiryDate').value = '';
+
+            var modal = new bootstrap.Modal(document.getElementById('bulkExpiryModal'));
+            modal.show();
+        });
+
+        // Toggle date input based on radio selection
+        document.querySelectorAll('input[name="expiry_action"]').forEach(function(radio) {
+            radio.addEventListener('change', function() {
+                var dateInput = document.getElementById('bulkExpiryDate');
+                dateInput.disabled = (this.value === 'clear');
+                if (this.value === 'clear') dateInput.value = '';
+            });
+        });
+
+        // Validate before submit
+        document.getElementById('bulkExpiryForm').addEventListener('submit', function(e) {
+            var action = document.querySelector('input[name="expiry_action"]:checked').value;
+            if (action === 'set') {
+                var dateVal = document.getElementById('bulkExpiryDate').value;
+                if (!dateVal) {
+                    e.preventDefault();
+                    alert('Επιλέξτε ημερομηνία λήξης.');
+                }
+            }
+        });
+    }
 })();
 </script>
 <?php endif; ?>

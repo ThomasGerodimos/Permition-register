@@ -100,6 +100,8 @@ $router->post('/resources/{id}/delete',  [SettingsController::class, 'deleteReso
 $router->get('/resources/by-type/{id}',     [SettingsController::class, 'resourcesByType']);
 $router->get('/resources/{id}/permissions', [SettingsController::class, 'resourcePermissions']);
 $router->post('/resources/{id}/clone-permissions', [SettingsController::class, 'clonePermissions']);
+$router->post('/resources/{id}/bulk-delete-permissions', [SettingsController::class, 'bulkDeletePermissions']);
+$router->post('/resources/{id}/bulk-set-expiry', [SettingsController::class, 'bulkSetExpiry']);
 
 // Network Graph
 $router->get('/network-graph', [DashboardController::class, 'networkGraph']);

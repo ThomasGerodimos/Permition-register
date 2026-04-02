@@ -42,6 +42,11 @@ $isTypeAdmin = Session::isTypeAdmin();
                         <label class="form-label">Περιγραφή</label>
                         <textarea name="description" class="form-control" rows="2"></textarea>
                     </div>
+                    <div class="mb-3">
+                        <label class="form-label">Λήξη Πόρου</label>
+                        <input type="date" name="expires_at" class="form-control">
+                        <div class="form-text">Αφήστε κενό για χωρίς λήξη</div>
+                    </div>
                     <button type="submit" class="btn btn-primary"><i class="bi bi-plus-lg"></i> Δημιουργία</button>
                 </form>
             </div>
@@ -96,6 +101,7 @@ $isTypeAdmin = Session::isTypeAdmin();
                                 <th data-sort="text">Όνομα</th>
                                 <th data-sort="text">Τοποθεσία</th>
                                 <th data-sort="text">Περιγραφή</th>
+                                <th data-sort="date">Λήξη</th>
                                 <th data-sort="num" class="text-center">Δικαιώματα</th>
                                 <th></th>
                             </tr>

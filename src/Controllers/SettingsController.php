@@ -240,6 +240,7 @@ class SettingsController
             'name'             => trim($_POST['name']        ?? ''),
             'description'      => trim($_POST['description'] ?? ''),
             'location'         => trim($_POST['location']    ?? ''),
+            'expires_at'       => trim($_POST['expires_at']  ?? ''),
         ];
 
         if (empty($data['name']) || empty($data['resource_type_id'])) {
@@ -281,6 +282,7 @@ class SettingsController
             'name'             => trim($_POST['name']        ?? ''),
             'description'      => trim($_POST['description'] ?? ''),
             'location'         => trim($_POST['location']    ?? ''),
+            'expires_at'       => trim($_POST['expires_at']  ?? ''),
         ];
 
         if (empty($data['name']) || empty($data['resource_type_id'])) {
@@ -368,6 +370,129 @@ class SettingsController
         }
         Session::flash('success', $msg);
         View::redirect('/resources');
+    }
+
+    /** Bulk delete (soft) permissions from a resource */
+    public function bulkDeletePermissions(string $id): void
+    {
+        Csrf::check();
+
+        $resModel = new Resource();
+        $resource = $resModel->findById((int)$id);
+
+        if (!$resource) {
+            Session::flash('error', 'Ο πόρος δεν βρέθηκε.');
+            View::redirect('/resources');
+        }
+
+        Middleware::requirePermissionEditor((int)$resource['resource_type_id']);
+
+        $permIds = array_map('intval', array_filter($_POST['perm_ids'] ?? []));
+
+        if (empty($permIds)) {
+            Session::flash('error', 'Δεν επιλέχθηκαν δικαιώματα.');
+            View::redirect("/resources/{$id}/permissions");
+            return;
+        }
+
+        $permModel = new Permission();
+        $auditLog  = new AuditLog();
+        $deleted   = 0;
+
+        foreach ($permIds as $permId) {
+            $perm = $this->db->fetchOne(
+                'SELECT p.*, u.full_name, u.username
+                 FROM permissions p
+                 JOIN users u ON u.id = p.user_id
+                 WHERE p.id = ? AND p.resource_id = ? AND p.is_active = 1',
+                [$permId, (int)$id]
+            );
+
+            if (!$perm) continue;
+
+            $permModel->delete($permId);
+            $auditLog->log('delete', 'permissions', $permId, $perm, [],
+                'Μαζική αφαίρεση δικαιώματος: ' . ($perm['full_name'] ?? $perm['username'])
+                . ' / ' . $perm['permission_level'] . ' από «' . $resource['name'] . '»');
+            $deleted++;
+        }
+
+        Session::flash('success', "Αφαιρέθηκαν $deleted δικαιώματα από τον πόρο «" . htmlspecialchars($resource['name']) . "».");
+        View::redirect("/resources/{$id}/permissions");
+    }
+
+    /** Bulk set/clear expiry date on permissions of a resource */
+    public function bulkSetExpiry(string $id): void
+    {
+        Csrf::check();
+
+        $resModel = new Resource();
+        $resource = $resModel->findById((int)$id);
+
+        if (!$resource) {
+            Session::flash('error', 'Ο πόρος δεν βρέθηκε.');
+            View::redirect('/resources');
+        }
+
+        Middleware::requirePermissionEditor((int)$resource['resource_type_id']);
+
+        $permIds = array_map('intval', array_filter($_POST['perm_ids'] ?? []));
+
+        if (empty($permIds)) {
+            Session::flash('error', 'Δεν επιλέχθηκαν δικαιώματα.');
+            View::redirect("/resources/{$id}/permissions");
+            return;
+        }
+
+        $action    = trim($_POST['expiry_action'] ?? 'set');
+        $expiresAt = ($action === 'set') ? trim($_POST['expires_at'] ?? '') : null;
+
+        if ($action === 'set' && empty($expiresAt)) {
+            Session::flash('error', 'Επιλέξτε ημερομηνία λήξης.');
+            View::redirect("/resources/{$id}/permissions");
+            return;
+        }
+
+        $auditLog = new AuditLog();
+        $updated  = 0;
+
+        foreach ($permIds as $permId) {
+            $perm = $this->db->fetchOne(
+                'SELECT p.*, u.full_name, u.username
+                 FROM permissions p
+                 JOIN users u ON u.id = p.user_id
+                 WHERE p.id = ? AND p.resource_id = ? AND p.is_active = 1',
+                [$permId, (int)$id]
+            );
+
+            if (!$perm) continue;
+
+            $oldExpiry = $perm['expires_at'];
+
+            $this->db->execute(
+                'UPDATE permissions SET expires_at = ? WHERE id = ?',
+                [$expiresAt, $permId]
+            );
+
+            $description = ($action === 'clear')
+                ? 'Αφαίρεση λήξης δικαιώματος: ' . ($perm['full_name'] ?? $perm['username']) . ' / ' . $perm['permission_level']
+                : 'Ορισμός λήξης δικαιώματος (' . $expiresAt . '): ' . ($perm['full_name'] ?? $perm['username']) . ' / ' . $perm['permission_level'];
+
+            $auditLog->log('update', 'permissions', $permId,
+                ['expires_at' => $oldExpiry],
+                ['expires_at' => $expiresAt],
+                $description . ' στον πόρο «' . $resource['name'] . '»');
+
+            $updated++;
+        }
+
+        $msg = ($action === 'clear')
+            ? "Αφαιρέθηκε η λήξη από $updated δικαιώματα"
+            : "Ορίστηκε λήξη ($expiresAt) σε $updated δικαιώματα";
+        $msg .= ' του πόρου «' . htmlspecialchars($resource['name']) . '».';
+
+        Session::flash('success', $msg);
+        View::redirect("/resources/{$id}/permissions");
     }
 
     /** Clone permissions from one resource to another */

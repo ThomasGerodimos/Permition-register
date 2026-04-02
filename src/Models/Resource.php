@@ -115,16 +115,29 @@ class Resource
     public function create(array $data): int
     {
         return $this->db->insert(
-            'INSERT INTO resources (resource_type_id, name, description, location) VALUES (?, ?, ?, ?)',
-            [$data['resource_type_id'], $data['name'], $data['description'] ?? null, $data['location'] ?? null]
+            'INSERT INTO resources (resource_type_id, name, description, location, expires_at) VALUES (?, ?, ?, ?, ?)',
+            [
+                $data['resource_type_id'],
+                $data['name'],
+                $data['description'] ?? null,
+                $data['location'] ?? null,
+                !empty($data['expires_at']) ? $data['expires_at'] : null,
+            ]
         );
     }
 
     public function update(int $id, array $data): void
     {
         $this->db->execute(
-            'UPDATE resources SET resource_type_id=?, name=?, description=?, location=? WHERE id=?',
-            [$data['resource_type_id'], $data['name'], $data['description'] ?? null, $data['location'] ?? null, $id]
+            'UPDATE resources SET resource_type_id=?, name=?, description=?, location=?, expires_at=? WHERE id=?',
+            [
+                $data['resource_type_id'],
+                $data['name'],
+                $data['description'] ?? null,
+                $data['location'] ?? null,
+                !empty($data['expires_at']) ? $data['expires_at'] : null,
+                $id,
+            ]
         );
     }
 

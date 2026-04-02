@@ -41,6 +41,9 @@
 - Dashboard με στατιστικά & Γράφημα Δικτύου
 - Impersonation: admin preview ως Προϊστάμενος ή Διαχειριστής Πόρου
 - Ασφαλή διαγραφή πόρων με αυτόματη αφαίρεση δικαιωμάτων
+- **Ημερομηνία λήξης πόρου** (`expires_at`): Ορισμός ημ/νίας λήξης σε πόρους (v2.1)
+- **Μαζική αφαίρεση δικαιωμάτων**: Επιλογή πολλαπλών χρηστών και bulk soft-delete (v2.1)
+- **Μαζικός ορισμός λήξης δικαιωμάτων**: Ορισμός/αφαίρεση ημ/νίας λήξης σε επιλεγμένα δικαιώματα (v2.1)
 - Υποστήριξη SSL (δυναμικό secure cookie)
 - Responsive σχεδιασμός (Bootstrap 5)
 
@@ -174,7 +177,8 @@ permissions/
 │   ├── schema.sql                   ← Δημιουργία πινάκων
 │   ├── seed.sql                     ← Αρχικά δεδομένα
 │   └── migrations/
-│       └── 001_user_type_admins.sql ← Πίνακας type-admin αναθέσεων
+│       ├── 001_user_type_admins.sql ← Πίνακας type-admin αναθέσεων
+│       └── 002_resource_expires_at.sql ← Στήλη λήξης πόρων (v2.1)
 │
 ├── storage/
 │   └── logs/                        ← Application logs
@@ -207,9 +211,9 @@ permissions/
 │ email        │  │    │ permission_level │       │ name         │
 │ department   │  ├───→│ granted_by (FK)  │       │ description  │
 │ job_title    │  │    │ notes            │       │ location     │
-│ phone        │  │    │ granted_at       │       │ is_active    │
-│ manager      │  │    │ expires_at       │       └──────────────┘
-│ role         │  │    │ is_active        │
+│ phone        │  │    │ granted_at       │       │ expires_at   │
+│ manager      │  │    │ expires_at       │       │ is_active    │
+│ role         │  │    │ is_active        │       └──────────────┘
 │ is_active    │  │    └──────────────────┘       ┌──────────────┐
 │ last_sync    │  │                               │resource_types│
 └──────────────┘  │    ┌──────────────────┐       ├──────────────┤
@@ -279,6 +283,7 @@ permissions/
 | name | VARCHAR(200) | Όνομα πόρου |
 | description | TEXT | Περιγραφή |
 | location | VARCHAR(500) | Διαδρομή / URL / server |
+| expires_at | DATE NULL | Ημ/νία λήξης πόρου (NULL = χωρίς λήξη) — v2.1 |
 | is_active | TINYINT(1) DEFAULT 1 | Ενεργός πόρος |
 | created_at | DATETIME | Ημ/νία δημιουργίας |
 
@@ -332,7 +337,7 @@ permissions/
 
 **Unique Constraint:** `(user_id, resource_type_id)` — Ένας χρήστης, μία ανάθεση ανά τύπο.
 
-**Migration:**
+**Migrations:**
 ```sql
 -- database/migrations/001_user_type_admins.sql
 CREATE TABLE IF NOT EXISTS `user_type_admins` (
@@ -347,6 +352,10 @@ CREATE TABLE IF NOT EXISTS `user_type_admins` (
   FOREIGN KEY (`resource_type_id`) REFERENCES `resource_types` (`id`) ON UPDATE CASCADE,
   FOREIGN KEY (`created_by`) REFERENCES `users` (`id`) ON UPDATE CASCADE ON DELETE SET NULL
 );
+
+-- database/migrations/002_resource_expires_at.sql (v2.1)
+ALTER TABLE `resources`
+  ADD COLUMN `expires_at` DATE DEFAULT NULL AFTER `location`;
 ```
 
 ---
@@ -397,6 +406,8 @@ CREATE TABLE IF NOT EXISTS `user_type_admins` (
 | Πόροι — Επεξεργασία | ✅ | ❌ | ✅ Μόνο ανατ. τύποι |
 | Πόροι — Διαγραφή | ✅ | ❌ | ✅ Μόνο ανατ. τύποι |
 | Πόροι — Κλωνοποίηση δικ. | ✅ | ❌ | ✅ Μόνο ανατ. τύποι |
+| Πόροι — Μαζική αφαίρεση δικ. | ✅ | ❌ | ✅ Μόνο ανατ. τύποι |
+| Πόροι — Μαζικός ορισμός λήξης | ✅ | ❌ | ✅ Μόνο ανατ. τύποι |
 | Χρήστες — Προβολή | ✅ Όλοι | ✅ Μόνο τμήμα | ✅ Cross-dept (χρήστες με ανατ. τύπους) |
 | Χρήστες — AD Sync | ✅ | ❌ | ❌ |
 | Ιστορικό (Audit) | ✅ | ❌ | ❌ |
@@ -446,7 +457,10 @@ CREATE TABLE IF NOT EXISTS `user_type_admins` (
 - Προβολή δικαιωμάτων ανά πόρο
 - Δημιουργία / Επεξεργασία / Διαγραφή πόρων
 - **Ασφαλής διαγραφή πόρων** (v2.0): Αν ο πόρος έχει ενεργά δικαιώματα, εμφανίζεται modal επιβεβαίωσης με τον αριθμό δικαιωμάτων. Με επιβεβαίωση, απενεργοποιούνται αυτόματα όλα τα δικαιώματα (audit log ανά δικαίωμα)
+- **Ημερομηνία λήξης πόρου** (v2.1): Κάθε πόρος μπορεί να έχει ημ/νία λήξης (`expires_at`). Εμφανίζεται στη φόρμα δημιουργίας/επεξεργασίας και στον πίνακα πόρων με οπτικές ενδείξεις (ληγμένος/σύντομα)
 - Κλωνοποίηση δικαιωμάτων μεταξύ πόρων
+- **Μαζική αφαίρεση δικαιωμάτων** (v2.1): Στη σελίδα δικαιωμάτων πόρου, επιλογή πολλαπλών χρηστών με checkboxes → bulk soft-delete με modal επιβεβαίωσης + audit log ανά δικαίωμα
+- **Μαζικός ορισμός λήξης δικαιωμάτων** (v2.1): Επιλογή χρηστών → κουμπί «Ορισμός Λήξης» → modal με δύο επιλογές: ορισμός ημερομηνίας ή αφαίρεση λήξης. Audit log ανά δικαίωμα
 - Type-admins: βλέπουν/διαχειρίζονται μόνο πόρους των ανατεθειμένων τύπων
 
 ### 6.5 Ιστορικό (Audit Log)
@@ -624,6 +638,8 @@ CREATE TABLE IF NOT EXISTS `user_type_admins` (
 | GET | `/resources/by-type/{id}` | SettingsController::resourcesByType | Πόροι ανά τύπο | Editor¹ |
 | GET | `/resources/{id}/permissions` | SettingsController::resourcePermissions | Δικαιώματα πόρου | Editor¹ |
 | POST | `/resources/{id}/clone-permissions` | SettingsController::clonePermissions | Κλωνοποίηση δικ. | Editor¹ |
+| POST | `/resources/{id}/bulk-delete-permissions` | SettingsController::bulkDeletePermissions | Μαζική αφαίρεση δικ. | Editor¹ |
+| POST | `/resources/{id}/bulk-set-expiry` | SettingsController::bulkSetExpiry | Μαζικός ορισμός λήξης | Editor¹ |
 | POST | `/impersonate/start` | DashboardController::impersonateStart | Έναρξη impersonation | Admin |
 | GET | `/impersonate/stop` | DashboardController::impersonateStop | Τέλος impersonation | Admin |
 | GET | `/api/ad/search?q=` | ApiController::adSearch | Αναζήτηση AD (AJAX) | Login |
@@ -723,6 +739,7 @@ USE permissions_db;
 SOURCE C:/wamp64/www/permissions/database/schema.sql;
 SOURCE C:/wamp64/www/permissions/database/seed.sql;
 SOURCE C:/wamp64/www/permissions/database/migrations/001_user_type_admins.sql;
+SOURCE C:/wamp64/www/permissions/database/migrations/002_resource_expires_at.sql;
 ```
 
 #### 5. Ρύθμιση Apache
@@ -873,6 +890,7 @@ USE permissions_db;
 SOURCE /path/to/permissions/database/schema.sql;
 SOURCE /path/to/permissions/database/seed.sql;
 SOURCE /path/to/permissions/database/migrations/001_user_type_admins.sql;
+SOURCE /path/to/permissions/database/migrations/002_resource_expires_at.sql;
 ```
 
 #### 4. Ρύθμιση Apache (Production)
@@ -961,6 +979,7 @@ permissions.hfiu.loc → IP_OF_SERVER
 | 16 | `storage/logs/` writable από web server | ☐ |
 | 17 | `.env` ΔΕΝ είναι accessible μέσω web | ☐ |
 | 18 | Migration `001_user_type_admins.sql` εκτελέστηκε | ☐ |
+| 18b | Migration `002_resource_expires_at.sql` εκτελέστηκε | ☐ |
 | 19 | Test login/logout | ☐ |
 | 20 | Test CRUD δικαιωμάτων | ☐ |
 | 21 | Test export (CSV, Excel, PDF) | ☐ |
@@ -1118,6 +1137,22 @@ mysqldump -u permissions_user -p permissions_db > "C:\backups\permissions_db_%da
 
 ## 15. Ιστορικό Αλλαγών
 
+### v2.1 — Απρίλιος 2026
+
+#### Νέα Χαρακτηριστικά
+- **Ημερομηνία λήξης πόρου**: Νέα στήλη `expires_at` (DATE) στον πίνακα `resources`. Ορισμός/επεξεργασία μέσω φόρμας δημιουργίας/επεξεργασίας πόρου. Οπτικές ενδείξεις στον πίνακα πόρων (ληγμένος/σύντομα λήξη)
+- **Μαζική αφαίρεση δικαιωμάτων**: Από τη σελίδα δικαιωμάτων πόρου (`/resources/{id}/permissions`), επιλογή πολλαπλών χρηστών με checkboxes, select-all (indeterminate), modal επιβεβαίωσης με λίστα χρηστών, bulk soft-delete με audit log ανά δικαίωμα
+- **Μαζικός ορισμός λήξης δικαιωμάτων**: Κουμπί «Ορισμός Λήξης» στη σελίδα δικαιωμάτων πόρου. Modal με δύο επιλογές: (1) Ορισμός ημερομηνίας λήξης (date picker, min=σήμερα), (2) Αφαίρεση λήξης (χωρίς ημ/νία). Audit log ανά ενημερωμένο δικαίωμα
+
+#### Τεχνικές Αλλαγές
+- Migration `002_resource_expires_at.sql` — `ALTER TABLE resources ADD COLUMN expires_at DATE DEFAULT NULL`
+- `Resource::create()` / `Resource::update()` — υποστήριξη `expires_at`
+- `SettingsController::storeResource()` / `updateResource()` — parse `expires_at` from POST
+- `SettingsController::bulkDeletePermissions()` — νέα μέθοδος bulk soft-delete
+- `SettingsController::bulkSetExpiry()` — νέα μέθοδος bulk set/clear expires_at
+- Routes: `POST /resources/{id}/bulk-delete-permissions`, `POST /resources/{id}/bulk-set-expiry`
+- View `resource-permissions.php`: checkboxes, select-all, bulk delete + bulk expiry buttons, modals, JS
+
 ### v2.0 — Απρίλιος 2026
 
 #### Νέα Χαρακτηριστικά
@@ -1165,7 +1200,7 @@ mysqldump -u permissions_user -p permissions_db > "C:\backups\permissions_db_%da
 
 | | |
 |---|---|
-| **Έκδοση** | 2.0 |
+| **Έκδοση** | 2.1 |
 | **Ημερομηνία** | Απρίλιος 2026 |
 | **Ανάπτυξη** | Τμήμα Ανάπτυξης και Υποστήριξης Εφαρμογών |
 | **Υποδιεύθυνση** | Ψηφιακής Διακυβέρνησης |
