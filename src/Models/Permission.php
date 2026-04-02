@@ -32,7 +32,7 @@ class Permission
         $rows   = $this->db->fetchAll(
             "SELECT p.*, u.full_name, u.username, u.department, u.email, u.job_title,
                     r.name AS resource_name, r.location,
-                    rt.label AS type_label, rt.name AS type_name, rt.icon AS type_icon,
+                    rt.id AS resource_type_id, rt.label AS type_label, rt.name AS type_name, rt.icon AS type_icon,
                     gb.full_name AS granted_by_name
              FROM permissions p
              JOIN users u ON u.id = p.user_id
@@ -52,7 +52,7 @@ class Permission
     public function getByUser(int $userId): array
     {
         return $this->db->fetchAll(
-            "SELECT p.*, r.name AS resource_name, r.location,
+            "SELECT p.*, r.name AS resource_name, r.location, r.resource_type_id,
                     rt.label AS type_label, rt.name AS type_name, rt.icon AS type_icon,
                     gb.full_name AS granted_by_name
              FROM permissions p
@@ -148,7 +148,7 @@ class Permission
     }
 
     /** Dashboard stats (optionally filtered by department for managers) */
-    public function getStats(?string $department = null): array
+    public function getStats(?string $department = null, ?array $typeIds = null): array
     {
         $deptWhere  = '';
         $deptParams = [];
@@ -157,12 +157,23 @@ class Permission
             $deptParams = [$department];
         }
 
+        // Type-admin filter: restrict to specific resource types
+        $typeWhere  = '';
+        $typeParams = [];
+        if ($typeIds) {
+            $placeholders = implode(',', array_fill(0, count($typeIds), '?'));
+            $typeWhere  = " AND rt.id IN ($placeholders)";
+            $typeParams = $typeIds;
+        }
+
         // Total permissions
         $total = (int)$this->db->fetchColumn(
             "SELECT COUNT(*) FROM permissions p
              JOIN users u ON u.id = p.user_id
-             WHERE p.is_active = 1 $deptWhere",
-            $deptParams
+             JOIN resources r ON r.id = p.resource_id
+             JOIN resource_types rt ON rt.id = r.resource_type_id
+             WHERE p.is_active = 1 $deptWhere $typeWhere",
+            array_merge($deptParams, $typeParams)
         );
 
         // Resources by type — for managers: count only resources with permissions for dept users
@@ -178,19 +189,20 @@ class Permission
                      JOIN users u2 ON u2.id = p2.user_id AND u2.department = ?
                      WHERE r2.is_active = 1
                  ) r ON r.resource_type_id = rt.id
-                 WHERE rt.is_active = 1
+                 WHERE rt.is_active = 1" . ($typeIds ? " AND rt.id IN (" . implode(',', array_fill(0, count($typeIds), '?')) . ")" : "") . "
                  GROUP BY rt.id, rt.label, rt.icon
                  ORDER BY rt.label",
-                [$department]
+                $typeIds ? array_merge([$department], $typeIds) : [$department]
             );
         } else {
             $byType = $this->db->fetchAll(
-                'SELECT rt.id AS type_id, rt.label, rt.icon, COUNT(r.id) AS cnt
+                "SELECT rt.id AS type_id, rt.label, rt.icon, COUNT(r.id) AS cnt
                  FROM resource_types rt
                  LEFT JOIN resources r ON r.resource_type_id = rt.id AND r.is_active = 1
-                 WHERE rt.is_active = 1
+                 WHERE rt.is_active = 1" . ($typeIds ? " AND rt.id IN (" . implode(',', array_fill(0, count($typeIds), '?')) . ")" : "") . "
                  GROUP BY rt.id, rt.label, rt.icon
-                 ORDER BY rt.label'
+                 ORDER BY rt.label",
+                $typeIds ?? []
             );
         }
 
@@ -199,11 +211,13 @@ class Permission
             "SELECT u.department, COUNT(p.id) AS cnt
              FROM permissions p
              JOIN users u ON u.id = p.user_id
-             WHERE p.is_active = 1 AND u.department IS NOT NULL $deptWhere
+             JOIN resources r ON r.id = p.resource_id
+             JOIN resource_types rt ON rt.id = r.resource_type_id
+             WHERE p.is_active = 1 AND u.department IS NOT NULL $deptWhere $typeWhere
              GROUP BY u.department
              ORDER BY cnt DESC
              LIMIT 10",
-            $deptParams
+            array_merge($deptParams, $typeParams)
         );
 
         // Recent entries
@@ -213,10 +227,10 @@ class Permission
              JOIN users u ON u.id = p.user_id
              JOIN resources r ON r.id = p.resource_id
              JOIN resource_types rt ON rt.id = r.resource_type_id
-             WHERE p.is_active = 1 $deptWhere
+             WHERE p.is_active = 1 $deptWhere $typeWhere
              ORDER BY p.granted_at DESC
              LIMIT 5",
-            $deptParams
+            array_merge($deptParams, $typeParams)
         );
 
         return compact('total', 'byType', 'byDept', 'recent');
@@ -238,6 +252,11 @@ class Permission
         if (!empty($filters['type_id'])) {
             $conditions[] = 'rt.id = ?';
             $params[]     = $filters['type_id'];
+        }
+        if (!empty($filters['type_ids']) && is_array($filters['type_ids'])) {
+            $placeholders = implode(',', array_fill(0, count($filters['type_ids']), '?'));
+            $conditions[] = "rt.id IN ($placeholders)";
+            $params       = array_merge($params, $filters['type_ids']);
         }
         if (!empty($filters['permission_level'])) {
             $conditions[] = 'p.permission_level LIKE ?';

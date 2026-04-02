@@ -28,13 +28,24 @@ class PermissionController
         ];
 
         // Managers see only their department
-        if (Session::isManager()) {
+        if (Session::isManager() && !Session::isTypeAdmin()) {
             $filters['department'] = Session::department();
+        }
+
+        // Type-admins see only their assigned resource types
+        if (!Session::isAdmin() && Session::isTypeAdmin()) {
+            $filters['type_ids'] = Session::getTypeAdminTypes();
         }
 
         $result      = $permModel->getList($filters, $page, $perPage);
         $departments = $userModel->getDepartments();
         $types       = $resModel->getAllTypes();
+
+        // Type-admins: filter the type dropdown to only their types
+        if (!Session::isAdmin() && Session::isTypeAdmin()) {
+            $allowedTypeIds = Session::getTypeAdminTypes();
+            $types = array_values(array_filter($types, fn($t) => in_array((int)$t['id'], $allowedTypeIds, true)));
+        }
 
         View::render('permissions/index', [
             'pageTitle'   => 'Δικαιώματα Πρόσβασης',
@@ -47,24 +58,31 @@ class PermissionController
 
     public function create(): void
     {
-        Middleware::requireAdmin();
+        Middleware::requirePermissionEditor();
 
-        $resModel = new Resource();
-        $types    = $resModel->getAllTypes();
+        $resModel  = new Resource();
+        $types     = $resModel->getAllTypes();
         $resources = $resModel->getAll();
 
+        // Type-admins only see their allowed resource types
+        $allowedTypeIds = Session::isAdmin() ? null : Session::getTypeAdminTypes();
+        if ($allowedTypeIds !== null) {
+            $types     = array_values(array_filter($types, fn($t) => in_array((int)$t['id'], $allowedTypeIds, true)));
+            $resources = array_values(array_filter($resources, fn($r) => in_array((int)$r['resource_type_id'], $allowedTypeIds, true)));
+        }
+
         View::render('permissions/form', [
-            'pageTitle' => 'Νέο Δικαίωμα',
+            'pageTitle'  => 'Νέο Δικαίωμα',
             'permission' => null,
-            'types'     => $types,
-            'resources' => $resources,
-            'action'    => 'create',
+            'types'      => $types,
+            'resources'  => $resources,
+            'action'     => 'create',
         ]);
     }
 
     public function store(): void
     {
-        Middleware::requireAdmin();
+        Middleware::requirePermissionEditor();
         Csrf::check();
 
         $data = $this->extractFormData();
@@ -73,6 +91,17 @@ class PermissionController
         if ($errors) {
             Session::flash('error', implode('<br>', $errors));
             View::redirect('/permissions/create');
+        }
+
+        // Type-admin: verify resource belongs to allowed type
+        if (!Session::isAdmin()) {
+            $resModel = new Resource();
+            $resource = $resModel->findById($data['resource_id']);
+            if (!$resource || !Session::isTypeAdmin((int)$resource['resource_type_id'])) {
+                http_response_code(403);
+                View::render('errors/403', [], false);
+                exit;
+            }
         }
 
         // Ensure user exists in DB
@@ -98,7 +127,7 @@ class PermissionController
 
     public function edit(string $id): void
     {
-        Middleware::requireAdmin();
+        Middleware::requirePermissionEditor();
 
         $permModel = new Permission();
         $permission = $permModel->findById((int)$id);
@@ -108,9 +137,23 @@ class PermissionController
             View::redirect('/permissions');
         }
 
+        // Type-admin can only edit permissions for their types
+        if (!Session::isAdmin() && !Session::isTypeAdmin((int)$permission['resource_type_id'])) {
+            http_response_code(403);
+            View::render('errors/403', [], false);
+            exit;
+        }
+
         $resModel  = new Resource();
         $types     = $resModel->getAllTypes();
         $resources = $resModel->getAll();
+
+        // Filter to allowed types only
+        $allowedTypeIds = Session::isAdmin() ? null : Session::getTypeAdminTypes();
+        if ($allowedTypeIds !== null) {
+            $types     = array_values(array_filter($types, fn($t) => in_array((int)$t['id'], $allowedTypeIds, true)));
+            $resources = array_values(array_filter($resources, fn($r) => in_array((int)$r['resource_type_id'], $allowedTypeIds, true)));
+        }
 
         View::render('permissions/form', [
             'pageTitle'  => 'Επεξεργασία Δικαιώματος',
@@ -123,7 +166,7 @@ class PermissionController
 
     public function update(string $id): void
     {
-        Middleware::requireAdmin();
+        Middleware::requirePermissionEditor();
         Csrf::check();
 
         $permModel = new Permission();
@@ -132,6 +175,13 @@ class PermissionController
         if (!$old) {
             Session::flash('error', 'Το δικαίωμα δεν βρέθηκε.');
             View::redirect('/permissions');
+        }
+
+        // Type-admin can only update permissions for their types
+        if (!Session::isAdmin() && !Session::isTypeAdmin((int)$old['resource_type_id'])) {
+            http_response_code(403);
+            View::render('errors/403', [], false);
+            exit;
         }
 
         $data   = $this->extractFormData();
@@ -153,7 +203,7 @@ class PermissionController
 
     public function delete(string $id): void
     {
-        Middleware::requireAdmin();
+        Middleware::requirePermissionEditor();
         Csrf::check();
 
         $permModel = new Permission();
@@ -162,6 +212,13 @@ class PermissionController
         if (!$old) {
             Session::flash('error', 'Το δικαίωμα δεν βρέθηκε.');
             View::redirect('/permissions');
+        }
+
+        // Type-admin can only delete permissions for their types
+        if (!Session::isAdmin() && !Session::isTypeAdmin((int)$old['resource_type_id'])) {
+            http_response_code(403);
+            View::render('errors/403', [], false);
+            exit;
         }
 
         $permModel->delete((int)$id);
@@ -177,11 +234,18 @@ class PermissionController
 
     public function bulk(): void
     {
-        Middleware::requireAdmin();
+        Middleware::requirePermissionEditor();
 
         $resModel  = new Resource();
         $types     = $resModel->getAllTypes();
         $resources = $resModel->getAll();
+
+        // Type-admins only see their allowed resource types
+        $allowedTypeIds = Session::isAdmin() ? null : Session::getTypeAdminTypes();
+        if ($allowedTypeIds !== null) {
+            $types     = array_values(array_filter($types, fn($t) => in_array((int)$t['id'], $allowedTypeIds, true)));
+            $resources = array_values(array_filter($resources, fn($r) => in_array((int)$r['resource_type_id'], $allowedTypeIds, true)));
+        }
 
         View::render('permissions/bulk-form', [
             'pageTitle' => 'Μαζική Ανάθεση Δικαιωμάτων',
@@ -192,7 +256,7 @@ class PermissionController
 
     public function bulkStore(): void
     {
-        Middleware::requireAdmin();
+        Middleware::requirePermissionEditor();
         Csrf::check();
 
         // Support both single resource_id (legacy) and multiple resource_ids[]
@@ -205,6 +269,19 @@ class PermissionController
             $resourceIds = [(int)$_POST['resource_id']];
         }
         $resourceIds = array_filter(array_map('intval', $resourceIds));
+
+        // Type-admin: verify all resources belong to allowed types
+        if (!Session::isAdmin() && !empty($resourceIds)) {
+            $resModel = new Resource();
+            $allowedTypes = Session::getTypeAdminTypes();
+            foreach ($resourceIds as $rid) {
+                $r = $resModel->findById($rid);
+                if (!$r || !in_array((int)$r['resource_type_id'], $allowedTypes, true)) {
+                    Session::flash('error', 'Δεν έχετε δικαίωμα διαχείρισης για αυτόν τον τύπο πόρου.');
+                    View::redirect('/permissions/bulk');
+                }
+            }
+        }
 
         $permissionLevel = trim($_POST['permission_level'] ?? '');
         $notes           = trim($_POST['notes'] ?? '');

@@ -46,6 +46,11 @@ $router->get('/login',  [AuthController::class, 'loginForm']);
 $router->post('/login', [AuthController::class, 'login']);
 $router->get('/logout', [AuthController::class, 'logout']);
 
+// Dev-only: test login as any local user (bypasses LDAP)
+if (($config['app_env'] ?? '') === 'development') {
+    $router->get('/dev/login-as/{username}', [AuthController::class, 'devLoginAs']);
+}
+
 // Dashboard
 $router->get('/',          [DashboardController::class, 'index']);
 $router->get('/dashboard', [DashboardController::class, 'index']);
@@ -84,6 +89,8 @@ $router->get('/settings',                    [SettingsController::class, 'index'
 $router->post('/settings/ip/store',          [SettingsController::class, 'storeIp']);
 $router->post('/settings/ip/{id}/delete',    [SettingsController::class, 'deleteIp']);
 $router->post('/settings/ip/{id}/toggle',    [SettingsController::class, 'toggleIp']);
+$router->post('/settings/type-admins/store',       [SettingsController::class, 'storeTypeAdmin']);
+$router->post('/settings/type-admins/{id}/delete',  [SettingsController::class, 'deleteTypeAdmin']);
 
 // Resources management (admin only)
 $router->get('/resources',              [SettingsController::class, 'resources']);

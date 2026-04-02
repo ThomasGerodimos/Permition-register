@@ -74,7 +74,7 @@ class User
     public function getAll(array $filters = []): array
     {
         [$where, $params] = $this->buildUserWhere($filters);
-        return $this->db->fetchAll("SELECT * FROM users {$where} ORDER BY full_name ASC", $params);
+        return $this->db->fetchAll("SELECT u.* FROM users u {$where} ORDER BY u.full_name ASC", $params);
     }
 
     /** Paginated user list — search always queries ALL users (ignores page) */
@@ -82,15 +82,45 @@ class User
     {
         [$where, $params] = $this->buildUserWhere($filters);
 
-        $total = (int)$this->db->fetchColumn("SELECT COUNT(*) FROM users {$where}", $params);
+        // Type-admin filter: only users that have permissions for specific resource types
+        $typeJoin = '';
+        if (!empty($filters['type_ids']) && is_array($filters['type_ids'])) {
+            $placeholders = implode(',', array_fill(0, count($filters['type_ids']), '?'));
+            $typeJoin = " AND u.id IN (
+                SELECT DISTINCT p2.user_id FROM permissions p2
+                JOIN resources r2 ON r2.id = p2.resource_id
+                WHERE p2.is_active = 1 AND r2.resource_type_id IN ($placeholders)
+            )";
+            $params = array_merge($params, $filters['type_ids']);
+        }
+
+        $countParams = $params;
+        $total = (int)$this->db->fetchColumn(
+            "SELECT COUNT(*) FROM users u {$where} {$typeJoin}",
+            $countParams
+        );
 
         $offset = ($page - 1) * $perPage;
-        $rows   = $this->db->fetchAll(
-            "SELECT u.*, (SELECT COUNT(*) FROM permissions p WHERE p.user_id = u.id AND p.is_active = 1) AS perm_count
-             FROM users u {$where}
+
+        // perm_count: if type-filtered, count only permissions for those types
+        if (!empty($filters['type_ids']) && is_array($filters['type_ids'])) {
+            $placeholders2 = implode(',', array_fill(0, count($filters['type_ids']), '?'));
+            $permCountSql = "(SELECT COUNT(*) FROM permissions p
+                              JOIN resources r3 ON r3.id = p.resource_id
+                              WHERE p.user_id = u.id AND p.is_active = 1
+                              AND r3.resource_type_id IN ($placeholders2))";
+            $listParams = array_merge($params, $filters['type_ids'], [$perPage, $offset]);
+        } else {
+            $permCountSql = "(SELECT COUNT(*) FROM permissions p WHERE p.user_id = u.id AND p.is_active = 1)";
+            $listParams = array_merge($params, [$perPage, $offset]);
+        }
+
+        $rows = $this->db->fetchAll(
+            "SELECT u.*, {$permCountSql} AS perm_count
+             FROM users u {$where} {$typeJoin}
              ORDER BY u.full_name ASC
              LIMIT ? OFFSET ?",
-            [...$params, $perPage, $offset]
+            $listParams
         );
 
         return compact('rows', 'total', 'page', 'perPage');
@@ -98,16 +128,16 @@ class User
 
     private function buildUserWhere(array $filters): array
     {
-        $conditions = ['is_active = 1'];
+        $conditions = ['u.is_active = 1'];
         $params     = [];
 
         if (!empty($filters['department'])) {
-            $conditions[] = 'department = ?';
+            $conditions[] = 'u.department = ?';
             $params[]     = $filters['department'];
         }
         if (!empty($filters['search'])) {
             $term = '%' . $filters['search'] . '%';
-            $conditions[] = '(full_name LIKE ? OR username LIKE ? OR email LIKE ? OR department LIKE ? OR job_title LIKE ?)';
+            $conditions[] = '(u.full_name LIKE ? OR u.username LIKE ? OR u.email LIKE ? OR u.department LIKE ? OR u.job_title LIKE ?)';
             $params = array_merge($params, [$term, $term, $term, $term, $term]);
         }
 

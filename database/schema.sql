@@ -103,6 +103,24 @@ CREATE TABLE IF NOT EXISTS `audit_log` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- --------------------------------------------------------
+-- User Type Admins (διαχειριστές ανά τύπο πόρου)
+-- --------------------------------------------------------
+CREATE TABLE IF NOT EXISTS `user_type_admins` (
+  `id`               INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `user_id`          INT UNSIGNED NOT NULL,
+  `resource_type_id` INT UNSIGNED NOT NULL,
+  `created_by`       INT UNSIGNED DEFAULT NULL,
+  `created_at`       DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uq_user_type` (`user_id`, `resource_type_id`),
+  KEY `idx_uta_user` (`user_id`),
+  KEY `idx_uta_type` (`resource_type_id`),
+  CONSTRAINT `fk_uta_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON UPDATE CASCADE,
+  CONSTRAINT `fk_uta_type` FOREIGN KEY (`resource_type_id`) REFERENCES `resource_types` (`id`) ON UPDATE CASCADE,
+  CONSTRAINT `fk_uta_created` FOREIGN KEY (`created_by`) REFERENCES `users` (`id`) ON UPDATE CASCADE ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- --------------------------------------------------------
 -- IP Restrictions (ανά ρόλο, διαχειρίζεται από UI)
 -- --------------------------------------------------------
 CREATE TABLE IF NOT EXISTS `ip_restrictions` (

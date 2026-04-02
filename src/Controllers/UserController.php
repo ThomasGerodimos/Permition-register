@@ -23,8 +23,13 @@ class UserController
         ];
 
         // Managers see only their department
-        if (Session::isManager()) {
+        if (Session::isManager() && !Session::isTypeAdmin()) {
             $filters['department'] = Session::department();
+        }
+
+        // Type-admins see only users with permissions for their resource types
+        if (!Session::isAdmin() && Session::isTypeAdmin()) {
+            $filters['type_ids'] = Session::getTypeAdminTypes();
         }
 
         $result      = $userModel->getList($filters, $page, $perPage);
@@ -50,8 +55,8 @@ class UserController
             View::redirect('/users');
         }
 
-        // Managers can only view their department
-        if (Session::isManager() && $user['department'] !== Session::department()) {
+        // Managers can only view their department (unless type-admin)
+        if (Session::isManager() && !Session::isTypeAdmin() && $user['department'] !== Session::department()) {
             http_response_code(403);
             View::render('errors/403', [], false);
             return;
@@ -59,6 +64,14 @@ class UserController
 
         $permModel = new Permission();
         $permissions = $permModel->getByUser((int)$id);
+
+        // Type-admins: filter permissions to only their resource types
+        if (!Session::isAdmin() && Session::isTypeAdmin()) {
+            $allowedTypeIds = Session::getTypeAdminTypes();
+            $permissions = array_values(array_filter($permissions, function($p) use ($allowedTypeIds) {
+                return in_array((int)($p['resource_type_id'] ?? 0), $allowedTypeIds, true);
+            }));
+        }
 
         View::render('permissions/user_view', [
             'pageTitle'   => 'Δικαιώματα: ' . ($user['full_name'] ?? $user['username']),

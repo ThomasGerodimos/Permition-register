@@ -93,7 +93,7 @@ $pages   = (int)ceil($total / $perPage);
                     <th data-sort="text">Εγκρίθηκε από</th>
                     <th data-sort="date">Ημ/νία</th>
                     <th data-sort="date">Λήξη</th>
-                    <?php if (Session::isAdmin()): ?><th></th><?php endif; ?>
+                    <?php if (Session::isAdmin() || Session::isTypeAdmin()): ?><th></th><?php endif; ?>
                 </tr>
             </thead>
             <tbody>
@@ -125,7 +125,7 @@ $pages   = (int)ceil($total / $perPage);
                             </span>
                         <?php else: ?>—<?php endif; ?>
                     </td>
-                    <?php if (Session::isAdmin()): ?>
+                    <?php if (Session::canManagePermission((int)($row['resource_type_id'] ?? 0))): ?>
                     <td class="text-end">
                         <a href="<?= $appUrl ?>/permissions/<?= $row['id'] ?>/edit"
                            class="btn btn-sm btn-outline-secondary" title="Επεξεργασία">
@@ -139,6 +139,8 @@ $pages   = (int)ceil($total / $perPage);
                             </button>
                         </form>
                     </td>
+                    <?php elseif (Session::isAdmin() || Session::isTypeAdmin()): ?>
+                    <td></td>
                     <?php endif; ?>
                 </tr>
                 <?php endforeach; ?>

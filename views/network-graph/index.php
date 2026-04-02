@@ -31,7 +31,7 @@ $typesJson = json_encode($resourceTypes, JSON_UNESCAPED_UNICODE);
                 <div class="col-auto">
                     <label class="form-label mb-0 fw-semibold small">Φίλτρα:</label>
                 </div>
-                <?php if ($role === 'admin'): ?>
+                <?php if ($role === 'admin' || \App\Core\Session::isTypeAdmin()): ?>
                 <div class="col-md-3">
                     <select id="filterDept" class="form-select form-select-sm">
                         <option value="">Όλα τα Τμήματα</option>

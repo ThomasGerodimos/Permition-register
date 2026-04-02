@@ -45,8 +45,20 @@ class AuthController
 
         $role = $adUser['role'];
 
-        // Viewers (no role) cannot log in
-        if ($role === 'viewer') {
+        // Upsert user in local DB (AD cache) — needed early for type-admin check
+        $userModel = new User();
+        $userId    = $userModel->syncFromAd($adUser);
+
+        // Load type-admin assignments
+        $db = Database::getInstance();
+        $typeAdminRows = $db->fetchAll(
+            'SELECT resource_type_id FROM user_type_admins WHERE user_id = ?',
+            [$userId]
+        );
+        $typeAdminTypes = array_column($typeAdminRows, 'resource_type_id');
+
+        // Viewers can log in only if they have type-admin assignments
+        if ($role === 'viewer' && empty($typeAdminTypes)) {
             Session::flash('error', 'Δεν έχετε δικαίωμα πρόσβασης στην εφαρμογή.');
             View::redirect('/login');
         }
@@ -57,10 +69,6 @@ class AuthController
             View::redirect('/login');
         }
 
-        // Upsert user in local DB (AD cache)
-        $userModel = new User();
-        $userId    = $userModel->syncFromAd($adUser);
-
         // Set session
         Session::set('user_id',    $userId);
         Session::set('username',   $adUser['username']);
@@ -69,6 +77,7 @@ class AuthController
         Session::set('department', $adUser['department'] ?? null);
         Session::set('email',      $adUser['email'] ?? null);
         Session::set('client_ip',  $clientIp);
+        Session::setTypeAdminTypes($typeAdminTypes);
 
         // Regenerate session ID for security
         session_regenerate_id(true);
@@ -81,5 +90,49 @@ class AuthController
     {
         Session::destroy();
         View::redirect('/login', ['success' => 'Αποσυνδεθήκατε επιτυχώς.']);
+    }
+
+    /**
+     * Dev-only: login as any local DB user without LDAP.
+     * Only available when APP_ENV=development.
+     */
+    public function devLoginAs(string $username): void
+    {
+        // Safety: only in development
+        if (\App\Core\Env::get('APP_ENV') !== 'development') {
+            http_response_code(403);
+            exit('Forbidden');
+        }
+
+        $userModel = new User();
+        $user = $userModel->findByUsername($username);
+
+        if (!$user) {
+            Session::flash('error', 'Ο χρήστης "' . htmlspecialchars($username) . '" δεν βρέθηκε στη βάση.');
+            View::redirect('/login');
+        }
+
+        // Load type-admin assignments
+        $db = Database::getInstance();
+        $typeAdminRows = $db->fetchAll(
+            'SELECT resource_type_id FROM user_type_admins WHERE user_id = ?',
+            [$user['id']]
+        );
+        $typeAdminTypes = array_column($typeAdminRows, 'resource_type_id');
+
+        // Set session
+        Session::set('user_id',    $user['id']);
+        Session::set('username',   $user['username']);
+        Session::set('full_name',  $user['full_name'] ?? $username);
+        Session::set('role',       $user['role']);
+        Session::set('department', $user['department'] ?? null);
+        Session::set('email',      $user['email'] ?? null);
+        Session::set('client_ip',  IpRestriction::clientIp());
+        Session::setTypeAdminTypes($typeAdminTypes);
+
+        session_regenerate_id(true);
+
+        Session::flash('success', '[DEV] Συνδεθήκατε ως ' . ($user['full_name'] ?? $username) . ' (role: ' . $user['role'] . ')');
+        View::redirect('/dashboard');
     }
 }

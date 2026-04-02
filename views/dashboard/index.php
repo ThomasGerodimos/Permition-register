@@ -54,10 +54,11 @@ $appUrl = Config::appUrl();
         $colClass = $typeCount <= 3 ? 'col-sm-6 col-xl-4' : 'col-sm-6 col-xl-3';
     ?>
     <div class="<?= $colClass ?>">
-        <?php if (Session::isAdmin()): ?>
-        <a href="<?= $appUrl ?>/resources/by-type/<?= $t['type_id'] ?>" class="text-decoration-none">
+        <?php $canLink = Session::isAdmin() || Session::isTypeAdmin((int)$t['type_id']); ?>
+        <?php if ($canLink): ?>
+        <a href="<?= $appUrl ?>/permissions?type_id=<?= $t['type_id'] ?>" class="text-decoration-none">
         <?php endif; ?>
-            <div class="card border-0 shadow-sm h-100 <?= Session::isAdmin() ? 'card-hover' : '' ?>">
+            <div class="card border-0 shadow-sm h-100 <?= $canLink ? 'card-hover' : '' ?>">
                 <div class="card-body d-flex align-items-center gap-3">
                     <div class="rounded-3 bg-<?= $color ?> bg-opacity-10 p-3">
                         <i class="<?= View::e($t['icon']) ?> fs-3 text-<?= $color ?>"></i>
@@ -66,12 +67,12 @@ $appUrl = Config::appUrl();
                         <div class="fs-2 fw-bold text-dark"><?= number_format($t['cnt']) ?></div>
                         <div class="text-muted small"><?= View::e($plural) ?></div>
                     </div>
-                    <?php if (Session::isAdmin()): ?>
+                    <?php if ($canLink): ?>
                     <i class="bi bi-chevron-right ms-auto text-muted"></i>
                     <?php endif; ?>
                 </div>
             </div>
-        <?php if (Session::isAdmin()): ?>
+        <?php if ($canLink): ?>
         </a>
         <?php endif; ?>
     </div>
@@ -80,11 +81,12 @@ $appUrl = Config::appUrl();
 
 <div class="row g-3 mt-1">
     <!-- Recent permissions -->
-    <div class="<?= Session::isManager() ? 'col-12' : 'col-xl-7' ?>">
+    <?php $showDeptPanel = Session::isAdmin() || Session::isTypeAdmin(); ?>
+    <div class="<?= $showDeptPanel ? 'col-xl-7' : 'col-12' ?>">
         <div class="card border-0 shadow-sm">
             <div class="card-header bg-white fw-semibold border-0 pt-3">
                 <i class="bi bi-clock-history me-1 text-primary"></i> Τελευταίες Εγγραφές
-                <?php if (Session::isManager()): ?>
+                <?php if (Session::isManager() && !Session::isTypeAdmin()): ?>
                 <span class="text-muted small fw-normal ms-2">— <?= View::e(Session::department()) ?></span>
                 <?php endif; ?>
             </div>
@@ -133,8 +135,8 @@ $appUrl = Config::appUrl();
         </div>
     </div>
 
-    <?php if (!Session::isManager()): ?>
-    <!-- By department (admin only) -->
+    <?php if ($showDeptPanel): ?>
+    <!-- By department -->
     <div class="col-xl-5">
         <div class="card border-0 shadow-sm">
             <div class="card-header bg-white fw-semibold border-0 pt-3">
