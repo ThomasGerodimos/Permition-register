@@ -108,7 +108,7 @@ $isTypeAdmin = Session::isTypeAdmin();
                         </thead>
                         <tbody>
                         <?php if (empty($rows)): ?>
-                            <tr><td colspan="6" class="text-center text-muted py-3">Δεν βρέθηκαν πόροι</td></tr>
+                            <tr><td colspan="7" class="text-center text-muted py-3">Δεν βρέθηκαν πόροι</td></tr>
                         <?php else: ?>
                         <?php foreach ($rows as $r): ?>
                         <tr>
@@ -125,6 +125,24 @@ $isTypeAdmin = Session::isTypeAdmin();
                             </td>
                             <td class="text-muted font-monospace"><?= View::e($r['location'] ?? '—') ?></td>
                             <td class="text-muted"><?= View::e($r['description'] ?? '') ?></td>
+                            <td class="small text-nowrap">
+                                <?php if (!empty($r['expires_at'])): ?>
+                                    <?php
+                                    $exp = new DateTime($r['expires_at']);
+                                    $now = new DateTime();
+                                    $diff = (int)$now->diff($exp)->format('%r%a');
+                                    ?>
+                                    <?php if ($diff < 0): ?>
+                                        <span class="badge bg-danger"><i class="bi bi-x-circle me-1"></i><?= $exp->format('d/m/Y') ?></span>
+                                    <?php elseif ($diff <= 30): ?>
+                                        <span class="badge bg-warning text-dark"><i class="bi bi-exclamation-triangle me-1"></i><?= $exp->format('d/m/Y') ?></span>
+                                    <?php else: ?>
+                                        <span class="text-muted"><?= $exp->format('d/m/Y') ?></span>
+                                    <?php endif; ?>
+                                <?php else: ?>
+                                    <span class="text-muted">—</span>
+                                <?php endif; ?>
+                            </td>
                             <td class="text-center">
                                 <?php if ($r['perm_count'] > 0): ?>
                                 <a href="<?= $appUrl ?>/resources/<?= $r['id'] ?>/permissions"
@@ -141,6 +159,7 @@ $isTypeAdmin = Session::isTypeAdmin();
                                         data-type-id="<?= $r['resource_type_id'] ?>"
                                         data-location="<?= View::e($r['location'] ?? '') ?>"
                                         data-description="<?= View::e($r['description'] ?? '') ?>"
+                                        data-expires-at="<?= View::e($r['expires_at'] ?? '') ?>"
                                         title="Επεξεργασία">
                                     <i class="bi bi-pencil"></i>
                                 </button>
@@ -237,6 +256,11 @@ $isTypeAdmin = Session::isTypeAdmin();
                     <div class="mb-3">
                         <label class="form-label">Περιγραφή</label>
                         <textarea name="description" id="editResDescription" class="form-control" rows="2"></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Λήξη Πόρου</label>
+                        <input type="date" name="expires_at" id="editResExpiresAt" class="form-control">
+                        <div class="form-text">Αφήστε κενό για χωρίς λήξη</div>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -376,6 +400,7 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('editResName').value        = btn.dataset.name;
         document.getElementById('editResLocation').value    = btn.dataset.location;
         document.getElementById('editResDescription').value = btn.dataset.description;
+        document.getElementById('editResExpiresAt').value   = btn.dataset.expiresAt || '';
 
         var modal = new bootstrap.Modal(document.getElementById('editResourceModal'));
         modal.show();

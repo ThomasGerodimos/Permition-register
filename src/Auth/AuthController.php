@@ -69,6 +69,12 @@ class AuthController
             View::redirect('/login');
         }
 
+        // IP restriction check for type-admins (viewer role with type-admin assignments, not admin/manager)
+        if ($role === 'viewer' && !empty($typeAdminTypes) && !IpRestriction::isAllowed($clientIp, 'type_admin')) {
+            Session::flash('error', 'Η IP διεύθυνσή σας (' . htmlspecialchars($clientIp) . ') δεν επιτρέπεται για Διαχειριστή Πόρου.');
+            View::redirect('/login');
+        }
+
         // Set session
         Session::set('user_id',    $userId);
         Session::set('username',   $adUser['username']);

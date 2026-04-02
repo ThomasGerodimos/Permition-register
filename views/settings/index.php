@@ -18,6 +18,7 @@ $appUrl = Config::appUrl();
                         <select name="role" class="form-select" required>
                             <option value="admin">Administrator</option>
                             <option value="manager">Manager (Προϊστάμενος)</option>
+                            <option value="type_admin">Διαχειριστής Πόρου (Type Admin)</option>
                         </select>
                     </div>
                     <div class="mb-3">
@@ -60,8 +61,16 @@ $appUrl = Config::appUrl();
                     <?php foreach ($ipRestrictions as $ip): ?>
                     <tr class="<?= $ip['is_active'] ? '' : 'table-secondary opacity-75' ?>">
                         <td>
-                            <span class="badge <?= $ip['role']==='admin' ? 'bg-danger' : 'bg-warning text-dark' ?>">
-                                <?= $ip['role'] === 'admin' ? 'Admin' : 'Manager' ?>
+                            <?php
+                            $roleBadge = match($ip['role']) {
+                                'admin'      => ['bg-danger', 'Admin'],
+                                'manager'    => ['bg-warning text-dark', 'Manager'],
+                                'type_admin' => ['bg-info text-dark', 'Type Admin'],
+                                default      => ['bg-secondary', $ip['role']],
+                            };
+                            ?>
+                            <span class="badge <?= $roleBadge[0] ?>">
+                                <?= $roleBadge[1] ?>
                             </span>
                         </td>
                         <td class="font-monospace"><?= View::e($ip['ip_range']) ?></td>

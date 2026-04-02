@@ -21,6 +21,23 @@ $canEdit = Session::isAdmin() || Session::isTypeAdmin((int)($resource['resource_
                     <?php if (!empty($resource['description'])): ?>
                     <span><i class="bi bi-info-circle me-1"></i><?= View::e($resource['description']) ?></span>
                     <?php endif; ?>
+                    <?php if (!empty($resource['expires_at'])): ?>
+                    <?php
+                    $resExp  = new DateTime($resource['expires_at']);
+                    $resNow  = new DateTime();
+                    $resDiff = (int)$resNow->diff($resExp)->format('%r%a');
+                    ?>
+                    <span>
+                        <i class="bi bi-calendar-event me-1"></i>Λήξη:
+                        <?php if ($resDiff < 0): ?>
+                            <span class="badge bg-danger">Ληγμένος (<?= $resExp->format('d/m/Y') ?>)</span>
+                        <?php elseif ($resDiff <= 30): ?>
+                            <span class="badge bg-warning text-dark">Λήγει <?= $resExp->format('d/m/Y') ?></span>
+                        <?php else: ?>
+                            <span class="text-muted"><?= $resExp->format('d/m/Y') ?></span>
+                        <?php endif; ?>
+                    </span>
+                    <?php endif; ?>
                 </div>
             </div>
             <div class="d-flex gap-2">

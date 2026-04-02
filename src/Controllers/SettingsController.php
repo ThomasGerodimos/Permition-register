@@ -58,7 +58,7 @@ class SettingsController
         $ipRange     = trim($_POST['ip_range']    ?? '');
         $description = trim($_POST['description'] ?? '');
 
-        if (!in_array($role, ['admin', 'manager'], true) || empty($ipRange)) {
+        if (!in_array($role, ['admin', 'manager', 'type_admin'], true) || empty($ipRange)) {
             Session::flash('error', 'Συμπληρώστε όλα τα υποχρεωτικά πεδία.');
             View::redirect('/settings');
         }
