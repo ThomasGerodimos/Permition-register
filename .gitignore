@@ -28,3 +28,9 @@ desktop.ini
 *.tmp
 *.bak
 *.orig
+
+
+# Test files
+public/test_mail_config.php
+public/test_ssl.php
+ToDo.txt
