@@ -26,6 +26,29 @@ class Middleware
         }
     }
 
+    /** Require permission editor: admin OR type-admin for the given resource type */
+    public static function requirePermissionEditor(?int $resourceTypeId = null): void
+    {
+        self::requireLogin();
+
+        // Full admins always pass
+        if (Session::realRole() === 'admin') {
+            return;
+        }
+
+        // Type-admins pass for their assigned types (or any if no specific type given)
+        if ($resourceTypeId !== null && Session::isTypeAdmin($resourceTypeId)) {
+            return;
+        }
+        if ($resourceTypeId === null && Session::isTypeAdmin()) {
+            return;
+        }
+
+        http_response_code(403);
+        View::render('errors/403', [], false);
+        exit;
+    }
+
     /** Require admin or manager role */
     public static function requireAdminOrManager(): void
     {

@@ -62,6 +62,11 @@ class Resource
             $conditions[] = 'r.resource_type_id = ?';
             $params[]     = $filters['type_id'];
         }
+        if (!empty($filters['type_ids']) && is_array($filters['type_ids'])) {
+            $placeholders = implode(',', array_fill(0, count($filters['type_ids']), '?'));
+            $conditions[] = "r.resource_type_id IN ($placeholders)";
+            $params       = array_merge($params, $filters['type_ids']);
+        }
         if (!empty($filters['search'])) {
             $term         = '%' . $filters['search'] . '%';
             $conditions[] = '(r.name LIKE ? OR r.description LIKE ? OR r.location LIKE ? OR rt.label LIKE ?)';

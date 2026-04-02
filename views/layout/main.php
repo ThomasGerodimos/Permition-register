@@ -65,11 +65,15 @@ $role   = Session::role();
                     <i class="bi bi-clock-history me-2"></i> Ιστορικό
                 </a>
             </li>
+            <?php endif; ?>
+            <?php if ($role === 'admin' || Session::isTypeAdmin()): ?>
             <li>
                 <a href="<?= $appUrl ?>/resources" class="nav-link text-white <?= str_contains($_SERVER['REQUEST_URI'],'/resources') ? 'active' : '' ?>">
                     <i class="bi bi-hdd-network-fill me-2"></i> Πόροι
                 </a>
             </li>
+            <?php endif; ?>
+            <?php if ($role === 'admin'): ?>
             <li>
                 <a href="<?= $appUrl ?>/settings" class="nav-link text-white <?= str_contains($_SERVER['REQUEST_URI'],'/settings') ? 'active' : '' ?>">
                     <i class="bi bi-gear-fill me-2"></i> Ρυθμίσεις
@@ -124,9 +128,21 @@ $role   = Session::role();
         <div class="alert alert-warning text-center mb-0 py-2 rounded-0 d-flex align-items-center justify-content-center gap-3" style="font-size:.85rem;">
             <i class="bi bi-eye-fill"></i>
             <span>
-                <strong>Προβολή ως <?= Session::role() === 'manager' ? 'Προϊστάμενος' : 'Viewer' ?></strong>
-                <?php if (Session::department()): ?>
-                    — Τμήμα: <strong><?= \App\Core\View::e(Session::department()) ?></strong>
+                <?php if (Session::isTypeAdmin()): ?>
+                    <?php
+                    $impTypeIds = Session::getTypeAdminTypes();
+                    $impTypeLabels = \App\Core\Database::getInstance()->fetchAll(
+                        'SELECT label FROM resource_types WHERE id IN (' . implode(',', array_fill(0, count($impTypeIds), '?')) . ') ORDER BY label',
+                        $impTypeIds
+                    );
+                    ?>
+                    <strong>Προβολή ως Διαχειριστής Πόρου</strong>
+                    — <?= \App\Core\View::e(implode(', ', array_column($impTypeLabels, 'label'))) ?>
+                <?php else: ?>
+                    <strong>Προβολή ως <?= Session::role() === 'manager' ? 'Προϊστάμενος' : 'Viewer' ?></strong>
+                    <?php if (Session::department()): ?>
+                        — Τμήμα: <strong><?= \App\Core\View::e(Session::department()) ?></strong>
+                    <?php endif; ?>
                 <?php endif; ?>
             </span>
             <a href="<?= $appUrl ?>/impersonate/stop" class="btn btn-sm btn-dark">
@@ -142,20 +158,30 @@ $role   = Session::role();
             </button>
             <span class="navbar-text fw-semibold text-muted"><?= \App\Core\View::e($pageTitle ?? '') ?></span>
             <div class="ms-auto d-flex gap-2 align-items-center">
-                <?php if (Session::isAdmin() && !Session::isImpersonating()): ?>
+                <?php if ((Session::isAdmin() || Session::isTypeAdmin()) && !Session::isImpersonating()): ?>
                 <a href="<?= $appUrl ?>/permissions/bulk" class="btn btn-sm btn-outline-primary">
                     <i class="bi bi-people-fill"></i> Μαζική Ανάθεση
                 </a>
                 <a href="<?= $appUrl ?>/permissions/create" class="btn btn-sm btn-primary">
                     <i class="bi bi-plus-lg"></i> Νέο Δικαίωμα
                 </a>
+                <?php endif; ?>
 
+                <?php if (Session::isAdmin() && !Session::isImpersonating()): ?>
                 <!-- Impersonate button -->
                 <div class="dropdown ms-2">
                     <button class="btn btn-sm btn-outline-warning dropdown-toggle" data-bs-toggle="dropdown" title="Προβολή ως...">
                         <i class="bi bi-eye"></i> Προβολή ως...
                     </button>
-                    <div class="dropdown-menu dropdown-menu-end p-3 shadow" style="min-width:280px;">
+                    <div class="dropdown-menu dropdown-menu-end p-3 shadow" style="min-width:300px;">
+                        <?php
+                        $depts = \App\Core\Database::getInstance()->fetchAll(
+                            'SELECT DISTINCT department FROM users WHERE department IS NOT NULL AND department != "" AND is_active = 1 ORDER BY department'
+                        );
+                        $resTypes = \App\Core\Database::getInstance()->fetchAll(
+                            'SELECT id, label, icon FROM resource_types WHERE is_active = 1 ORDER BY label'
+                        );
+                        ?>
                         <h6 class="dropdown-header px-0">Προβολή ως Προϊστάμενος</h6>
                         <form method="POST" action="<?= $appUrl ?>/impersonate/start">
                             <?= \App\Core\Csrf::field() ?>
@@ -164,16 +190,34 @@ $role   = Session::role();
                                 <label class="form-label small fw-semibold mb-1">Τμήμα</label>
                                 <select name="imp_department" class="form-select form-select-sm" required>
                                     <option value="">— Επιλέξτε τμήμα —</option>
-                                    <?php
-                                    $depts = \App\Core\Database::getInstance()->fetchAll(
-                                        'SELECT DISTINCT department FROM users WHERE department IS NOT NULL AND department != "" AND is_active = 1 ORDER BY department'
-                                    );
-                                    foreach ($depts as $d): ?>
+                                    <?php foreach ($depts as $d): ?>
                                     <option value="<?= \App\Core\View::e($d['department']) ?>">
                                         <?= \App\Core\View::e($d['department']) ?>
                                     </option>
                                     <?php endforeach; ?>
                                 </select>
+                            </div>
+                            <button type="submit" class="btn btn-sm btn-warning w-100">
+                                <i class="bi bi-eye-fill me-1"></i>Προβολή
+                            </button>
+                        </form>
+                        <hr class="my-2">
+                        <h6 class="dropdown-header px-0">Προβολή ως Διαχειριστής Πόρου</h6>
+                        <form method="POST" action="<?= $appUrl ?>/impersonate/start">
+                            <?= \App\Core\Csrf::field() ?>
+                            <input type="hidden" name="imp_role" value="type_admin">
+                            <div class="mb-2">
+                                <label class="form-label small fw-semibold mb-1">Τύποι πόρων</label>
+                                <?php foreach ($resTypes as $rt): ?>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="imp_type_ids[]"
+                                           value="<?= $rt['id'] ?>" id="impType<?= $rt['id'] ?>">
+                                    <label class="form-check-label small" for="impType<?= $rt['id'] ?>">
+                                        <i class="<?= \App\Core\View::e($rt['icon']) ?> me-1"></i>
+                                        <?= \App\Core\View::e($rt['label']) ?>
+                                    </label>
+                                </div>
+                                <?php endforeach; ?>
                             </div>
                             <button type="submit" class="btn btn-sm btn-warning w-100">
                                 <i class="bi bi-eye-fill me-1"></i>Προβολή

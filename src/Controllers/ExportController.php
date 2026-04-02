@@ -18,9 +18,14 @@ class ExportController
             'search'           => trim($_GET['search']           ?? ''),
         ];
 
-        // Managers can only export their department
-        if (Session::isManager()) {
+        // Managers (non-type-admin) can only export their department
+        if (Session::isManager() && !Session::isTypeAdmin()) {
             $filters['department'] = Session::department();
+        }
+
+        // Type-admins can only export their assigned resource types
+        if (!Session::isAdmin() && Session::isTypeAdmin()) {
+            $filters['type_ids'] = Session::getTypeAdminTypes();
         }
 
         return $filters;

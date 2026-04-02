@@ -88,22 +88,55 @@ class Session
         return self::get('department');
     }
 
+    // ── Type Admin (resource-type-scoped permission management) ─────
+
+    /** Store type-admin resource type IDs in session */
+    public static function setTypeAdminTypes(array $typeIds): void
+    {
+        self::set('type_admin_types', array_map('intval', $typeIds));
+    }
+
+    /** Get the list of resource type IDs this user can administer */
+    public static function getTypeAdminTypes(): array
+    {
+        return self::get('type_admin_types', []);
+    }
+
+    /** Check if user is a type-admin (optionally for a specific type) */
+    public static function isTypeAdmin(?int $typeId = null): bool
+    {
+        $types = self::getTypeAdminTypes();
+        if (empty($types)) {
+            return false;
+        }
+        return $typeId === null || in_array($typeId, $types, true);
+    }
+
+    /** Check if user can manage permissions for a given resource type */
+    public static function canManagePermission(int $resourceTypeId): bool
+    {
+        return self::isAdmin() || self::isTypeAdmin($resourceTypeId);
+    }
+
     // ── Impersonate (admin previews another role) ───────────────────
 
-    /** Start impersonating: save real session, override role & department */
-    public static function impersonate(string $role, ?string $department = null): void
+    /** Start impersonating: save real session, override role & department & type-admin types */
+    public static function impersonate(string $role, ?string $department = null, ?array $typeAdminTypes = null): void
     {
         // Save original values only if not already impersonating
         if (!self::has('_impersonate_original')) {
             self::set('_impersonate_original', [
-                'role'       => self::get('role'),
-                'department' => self::get('department'),
+                'role'             => self::get('role'),
+                'department'       => self::get('department'),
+                'type_admin_types' => self::get('type_admin_types', []),
             ]);
         }
         self::set('role', $role);
         if ($department !== null) {
             self::set('department', $department);
         }
+        // Override type-admin types (empty array = no type-admin, non-null array = set)
+        self::set('type_admin_types', $typeAdminTypes ?? []);
     }
 
     /** Stop impersonating: restore original session values */
@@ -113,6 +146,7 @@ class Session
         if ($original) {
             self::set('role', $original['role']);
             self::set('department', $original['department']);
+            self::set('type_admin_types', $original['type_admin_types'] ?? []);
             self::remove('_impersonate_original');
         }
     }

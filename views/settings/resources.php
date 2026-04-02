@@ -1,11 +1,13 @@
 <?php
-use App\Core\{View, Csrf, Config};
+use App\Core\{View, Csrf, Config, Session};
 $appUrl  = Config::appUrl();
 $rows    = $result['rows'];
 $total   = $result['total'];
 $page    = $result['page'];
 $perPage = $result['perPage'];
 $pages   = (int)ceil($total / $perPage);
+$isAdmin = Session::isAdmin();
+$isTypeAdmin = Session::isTypeAdmin();
 ?>
 
 <div class="row g-3 mt-1">
@@ -126,6 +128,7 @@ $pages   = (int)ceil($total / $perPage);
                                 <?php endif; ?>
                             </td>
                             <td class="text-end text-nowrap">
+                                <?php if ($isAdmin || Session::isTypeAdmin((int)$r['resource_type_id'])): ?>
                                 <button type="button" class="btn btn-sm btn-outline-secondary btn-edit-resource"
                                         data-id="<?= $r['id'] ?>"
                                         data-name="<?= View::e($r['name']) ?>"
@@ -135,11 +138,14 @@ $pages   = (int)ceil($total / $perPage);
                                         title="Επεξεργασία">
                                     <i class="bi bi-pencil"></i>
                                 </button>
-                                <form method="POST" action="<?= $appUrl ?>/resources/<?= $r['id'] ?>/delete"
-                                      class="d-inline" onsubmit="return confirm('Διαγραφή πόρου «<?= View::e($r['name']) ?>»;')">
-                                    <?= Csrf::field() ?>
-                                    <button class="btn btn-sm btn-outline-danger"><i class="bi bi-trash3"></i></button>
-                                </form>
+                                <button type="button" class="btn btn-sm btn-outline-danger btn-delete-resource"
+                                        data-id="<?= $r['id'] ?>"
+                                        data-name="<?= View::e($r['name']) ?>"
+                                        data-perm-count="<?= $r['perm_count'] ?>"
+                                        title="Διαγραφή">
+                                    <i class="bi bi-trash3"></i>
+                                </button>
+                                <?php endif; ?>
                             </td>
                         </tr>
                         <?php endforeach; ?>
@@ -230,6 +236,37 @@ $pages   = (int)ceil($total / $perPage);
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Ακύρωση</button>
                     <button type="submit" class="btn btn-primary"><i class="bi bi-check-lg"></i> Αποθήκευση</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Resource Confirmation Modal -->
+<div class="modal fade" id="deleteResourceModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="POST" id="deleteResourceForm">
+                <?= Csrf::field() ?>
+                <input type="hidden" name="confirm_delete" value="1">
+                <div class="modal-header bg-danger text-white">
+                    <h5 class="modal-title"><i class="bi bi-exclamation-triangle-fill me-1"></i> Διαγραφή Πόρου</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Είστε σίγουροι ότι θέλετε να διαγράψετε τον πόρο <strong id="deleteResName"></strong>;</p>
+                    <div id="deletePermWarning" class="alert alert-warning d-none">
+                        <i class="bi bi-exclamation-triangle-fill me-1"></i>
+                        <strong>Προσοχή!</strong> Ο πόρος αυτός έχει
+                        <strong id="deletePermCount"></strong> ενεργά δικαιώματα.
+                        <br>Με τη διαγραφή θα <strong>απενεργοποιηθούν</strong> όλα τα δικαιώματα αυτόματα.
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Ακύρωση</button>
+                    <button type="submit" class="btn btn-danger">
+                        <i class="bi bi-trash3 me-1"></i>Διαγραφή
+                    </button>
                 </div>
             </form>
         </div>
@@ -335,6 +372,30 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('editResDescription').value = btn.dataset.description;
 
         var modal = new bootstrap.Modal(document.getElementById('editResourceModal'));
+        modal.show();
+    });
+
+    // Delete resource — show modal with permission warning
+    document.addEventListener('click', function(e) {
+        var btn = e.target.closest('.btn-delete-resource');
+        if (!btn) return;
+
+        var resId     = btn.dataset.id;
+        var resName   = btn.dataset.name;
+        var permCount = parseInt(btn.dataset.permCount) || 0;
+
+        document.getElementById('deleteResourceForm').action = APP_URL + '/resources/' + resId + '/delete';
+        document.getElementById('deleteResName').textContent = '«' + resName + '»';
+
+        var warning = document.getElementById('deletePermWarning');
+        if (permCount > 0) {
+            document.getElementById('deletePermCount').textContent = permCount;
+            warning.classList.remove('d-none');
+        } else {
+            warning.classList.add('d-none');
+        }
+
+        var modal = new bootstrap.Modal(document.getElementById('deleteResourceModal'));
         modal.show();
     });
 });

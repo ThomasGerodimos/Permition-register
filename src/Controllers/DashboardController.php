@@ -15,15 +15,26 @@ class DashboardController
         $permModel = new Permission();
         $userModel = new User();
 
-        // Managers see only their department
-        $dept = Session::isManager() ? Session::department() : null;
+        // Type-admins see all departments but only their resource types
+        // Managers (non-type-admin) see only their department
+        $dept = (Session::isManager() && !Session::isTypeAdmin()) ? Session::department() : null;
+        $typeIds = (!Session::isAdmin() && Session::isTypeAdmin()) ? Session::getTypeAdminTypes() : null;
 
-        $stats = $permModel->getStats($dept);
+        $stats = $permModel->getStats($dept, $typeIds);
 
         if ($dept) {
             $totalUsers = (int)Database::getInstance()->fetchColumn(
                 'SELECT COUNT(*) FROM users WHERE department = ? AND is_active = 1',
                 [$dept]
+            );
+        } elseif ($typeIds) {
+            // Count users that have permissions for the allowed resource types
+            $placeholders = implode(',', array_fill(0, count($typeIds), '?'));
+            $totalUsers = (int)Database::getInstance()->fetchColumn(
+                "SELECT COUNT(DISTINCT p.user_id) FROM permissions p
+                 JOIN resources r ON r.id = p.resource_id
+                 WHERE p.is_active = 1 AND r.resource_type_id IN ($placeholders)",
+                $typeIds
             );
         } else {
             $totalUsers = count($userModel->getAll());
@@ -46,13 +57,23 @@ class DashboardController
             View::redirect('/dashboard');
         }
 
-        // Managers can only see their own department
-        if (Session::isManager() && $department !== Session::department()) {
+        // Managers can only see their own department (type-admins can see all)
+        if (Session::isManager() && !Session::isTypeAdmin() && $department !== Session::department()) {
             Session::flash('error', 'Δεν έχετε πρόσβαση σε αυτό το τμήμα.');
             View::redirect('/dashboard');
         }
 
         $db = Database::getInstance();
+
+        // Type-admin filter
+        $typeIds = (!Session::isAdmin() && Session::isTypeAdmin()) ? Session::getTypeAdminTypes() : null;
+        $typeWhere = '';
+        $typeParams = [];
+        if ($typeIds) {
+            $placeholders = implode(',', array_fill(0, count($typeIds), '?'));
+            $typeWhere = " AND rt.id IN ($placeholders)";
+            $typeParams = $typeIds;
+        }
 
         // Get department users
         $users = $db->fetchAll(
@@ -64,16 +85,16 @@ class DashboardController
         $permissions = $db->fetchAll(
             "SELECT p.*, u.full_name, u.username, u.email, u.job_title,
                     r.id AS res_id, r.name AS resource_name, r.location,
-                    rt.label AS type_label, rt.icon AS type_icon,
+                    rt.id AS resource_type_id, rt.label AS type_label, rt.icon AS type_icon,
                     gb.full_name AS granted_by_name
              FROM permissions p
              JOIN users u ON u.id = p.user_id
              JOIN resources r ON r.id = p.resource_id
              JOIN resource_types rt ON rt.id = r.resource_type_id
              LEFT JOIN users gb ON gb.id = p.granted_by
-             WHERE u.department = ? AND p.is_active = 1
+             WHERE u.department = ? AND p.is_active = 1 $typeWhere
              ORDER BY rt.label, r.name, p.permission_level, u.full_name",
-            [$department]
+            array_merge([$department], $typeParams)
         );
 
         // Group by resource
@@ -109,8 +130,11 @@ class DashboardController
 
         $db = Database::getInstance();
 
-        // Managers see only their department
-        $dept = Session::isManager() ? Session::department() : null;
+        // Type-admins see all departments but only their resource types
+        $dept = (Session::isManager() && !Session::isTypeAdmin()) ? Session::department() : null;
+
+        // Type-admins see only their assigned resource types
+        $typeIds = (!Session::isAdmin() && Session::isTypeAdmin()) ? Session::getTypeAdminTypes() : null;
 
         // Fetch all active permissions with user/resource/type info
         $sql = "SELECT p.id, p.permission_level,
@@ -127,6 +151,12 @@ class DashboardController
         if ($dept) {
             $sql .= " AND u.department = ?";
             $params[] = $dept;
+        }
+
+        if ($typeIds) {
+            $placeholders = implode(',', array_fill(0, count($typeIds), '?'));
+            $sql .= " AND rt.id IN ($placeholders)";
+            $params = array_merge($params, $typeIds);
         }
 
         $sql .= " ORDER BY u.full_name, r.name";
@@ -205,6 +235,31 @@ class DashboardController
 
         $role       = trim($_POST['imp_role'] ?? 'manager');
         $department = trim($_POST['imp_department'] ?? '');
+
+        if ($role === 'type_admin') {
+            // Impersonate as type-admin (viewer role + selected resource types)
+            $typeIds = array_map('intval', array_filter($_POST['imp_type_ids'] ?? []));
+            if (empty($typeIds)) {
+                Session::flash('error', 'Επιλέξτε τουλάχιστον έναν τύπο πόρου.');
+                View::redirect('/dashboard');
+                return;
+            }
+            // Type-admins have viewer base role but with type-admin powers
+            Session::impersonate('viewer', $department ?: null, $typeIds);
+
+            // Build label for flash message
+            $db = Database::getInstance();
+            $placeholders = implode(',', array_fill(0, count($typeIds), '?'));
+            $typeLabels = $db->fetchAll(
+                "SELECT label FROM resource_types WHERE id IN ($placeholders) ORDER BY label",
+                $typeIds
+            );
+            $labels = implode(', ', array_column($typeLabels, 'label'));
+
+            Session::flash('success', 'Προβολή ως Διαχειριστής Πόρου — ' . $labels);
+            View::redirect('/dashboard');
+            return;
+        }
 
         if (!in_array($role, ['manager', 'viewer'], true)) {
             $role = 'manager';

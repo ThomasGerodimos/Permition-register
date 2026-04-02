@@ -69,7 +69,7 @@ $headerTable->addRow();
 $cell1 = $headerTable->addCell(5000);
 $cell1->addText('Μητρώο Δικαιωμάτων', ['size' => 8, 'color' => '888888', 'italic' => true], ['spaceAfter' => 0]);
 $cell2 = $headerTable->addCell(5000);
-$cell2->addText('Τεχνική Τεκμηρίωση v1.0', ['size' => 8, 'color' => '888888', 'italic' => true], ['alignment' => Jc::END, 'spaceAfter' => 0]);
+$cell2->addText('Τεχνική Τεκμηρίωση v2.0', ['size' => 8, 'color' => '888888', 'italic' => true], ['alignment' => Jc::END, 'spaceAfter' => 0]);
 
 // Footer
 $footer = $section->addFooter();
@@ -93,8 +93,8 @@ $section->addText('', [], ['borderBottomSize' => 12, 'borderBottomColor' => '2c5
 // Info table
 $infoTable = $section->addTable(['borderSize' => 0, 'cellMarginTop' => 40, 'cellMarginBottom' => 40]);
 $infoData = [
-    ['Έκδοση', '1.0'],
-    ['Ημερομηνία', 'Μάρτιος 2026'],
+    ['Έκδοση', '2.0'],
+    ['Ημερομηνία', 'Απρίλιος 2026'],
     ['Ανάπτυξη', 'Τμήμα Ανάπτυξης και Υποστήριξης Εφαρμογών'],
     ['Υποδιεύθυνση', 'Ψηφιακής Διακυβέρνησης'],
 ];

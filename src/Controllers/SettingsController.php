@@ -4,7 +4,7 @@ namespace App\Controllers;
 
 use App\Auth\Middleware;
 use App\Core\{View, Session, Database, Csrf};
-use App\Models\{Resource, Permission, AuditLog};
+use App\Models\{Resource, Permission, AuditLog, User};
 
 class SettingsController
 {
@@ -26,9 +26,26 @@ class SettingsController
              ORDER BY ip.role, ip.ip_range'
         );
 
+        // Type-admin assignments
+        $typeAdmins = $this->db->fetchAll(
+            'SELECT uta.*, u.full_name, u.username, u.department,
+                    rt.label AS type_label, rt.icon AS type_icon,
+                    cb.full_name AS created_by_name
+             FROM user_type_admins uta
+             JOIN users u ON u.id = uta.user_id
+             JOIN resource_types rt ON rt.id = uta.resource_type_id
+             LEFT JOIN users cb ON cb.id = uta.created_by
+             ORDER BY u.full_name, rt.label'
+        );
+
+        $resModel = new Resource();
+        $resourceTypes = $resModel->getAllTypes();
+
         View::render('settings/index', [
             'pageTitle'      => 'Ρυθμίσεις',
             'ipRestrictions' => $ipRestrictions,
+            'typeAdmins'     => $typeAdmins,
+            'resourceTypes'  => $resourceTypes,
         ]);
     }
 
@@ -92,10 +109,17 @@ class SettingsController
 
     public function resources(): void
     {
-        Middleware::requireAdmin();
+        Middleware::requirePermissionEditor();
 
         $resModel = new Resource();
         $types    = $resModel->getAllTypes();
+
+        // Type-admins see only their assigned types
+        $typeAdminTypes = null;
+        if (!Session::isAdmin() && Session::isTypeAdmin()) {
+            $typeAdminTypes = Session::getTypeAdminTypes();
+            $types = array_values(array_filter($types, fn($t) => in_array((int)$t['id'], $typeAdminTypes, true)));
+        }
 
         $perPage = 5;
         $page    = max(1, (int)($_GET['page'] ?? 1));
@@ -104,6 +128,11 @@ class SettingsController
             'search'  => trim($_GET['search']  ?? ''),
             'type_id' => (int)($_GET['type_id'] ?? 0) ?: null,
         ];
+
+        // Restrict type_ids for type-admins
+        if ($typeAdminTypes !== null) {
+            $filters['type_ids'] = $typeAdminTypes;
+        }
 
         $result = $resModel->getList($filters, $page, $perPage);
 
@@ -117,7 +146,7 @@ class SettingsController
 
     public function resourcesByType(string $typeId): void
     {
-        Middleware::requireAdmin();
+        Middleware::requirePermissionEditor((int)$typeId);
 
         $resModel = new Resource();
         $type     = $resModel->getTypeById((int)$typeId);
@@ -172,8 +201,6 @@ class SettingsController
 
     public function resourcePermissions(string $id): void
     {
-        Middleware::requireAdmin();
-
         $resModel = new Resource();
         $resource = $resModel->findById((int)$id);
 
@@ -181,6 +208,8 @@ class SettingsController
             Session::flash('error', 'Ο πόρος δεν βρέθηκε.');
             View::redirect('/resources');
         }
+
+        Middleware::requirePermissionEditor((int)$resource['resource_type_id']);
 
         $permModel   = new Permission();
         $permissions = $permModel->getByResource((int)$id);
@@ -202,11 +231,12 @@ class SettingsController
 
     public function storeResource(): void
     {
-        Middleware::requireAdmin();
+        $typeId = (int)($_POST['resource_type_id'] ?? 0);
+        Middleware::requirePermissionEditor($typeId ?: null);
         Csrf::check();
 
         $data = [
-            'resource_type_id' => (int)($_POST['resource_type_id'] ?? 0),
+            'resource_type_id' => $typeId,
             'name'             => trim($_POST['name']        ?? ''),
             'description'      => trim($_POST['description'] ?? ''),
             'location'         => trim($_POST['location']    ?? ''),
@@ -215,6 +245,13 @@ class SettingsController
         if (empty($data['name']) || empty($data['resource_type_id'])) {
             Session::flash('error', 'Συμπληρώστε όνομα και τύπο πόρου.');
             View::redirect('/resources');
+        }
+
+        // Type-admin can only create resources for their types
+        if (!Session::isAdmin() && !Session::isTypeAdmin($typeId)) {
+            http_response_code(403);
+            View::render('errors/403', [], false);
+            exit;
         }
 
         $id = (new Resource())->create($data);
@@ -226,7 +263,6 @@ class SettingsController
 
     public function updateResource(string $id): void
     {
-        Middleware::requireAdmin();
         Csrf::check();
 
         $resModel = new Resource();
@@ -237,6 +273,9 @@ class SettingsController
             View::redirect('/resources');
         }
 
+        // Check access for the existing resource type
+        Middleware::requirePermissionEditor((int)$old['resource_type_id']);
+
         $data = [
             'resource_type_id' => (int)($_POST['resource_type_id'] ?? 0),
             'name'             => trim($_POST['name']        ?? ''),
@@ -246,6 +285,12 @@ class SettingsController
 
         if (empty($data['name']) || empty($data['resource_type_id'])) {
             Session::flash('error', 'Συμπληρώστε όνομα και τύπο πόρου.');
+            View::redirect('/resources');
+        }
+
+        // Type-admin cannot change type to one they don't manage
+        if (!Session::isAdmin() && !Session::isTypeAdmin($data['resource_type_id'])) {
+            Session::flash('error', 'Δεν μπορείτε να αλλάξετε τον τύπο σε κάποιον που δεν διαχειρίζεστε.');
             View::redirect('/resources');
         }
 
@@ -259,25 +304,75 @@ class SettingsController
 
     public function deleteResource(string $id): void
     {
-        Middleware::requireAdmin();
         Csrf::check();
 
         $resModel = new Resource();
         $res = $resModel->findById((int)$id);
-        if ($res) {
-            $resModel->delete((int)$id);
-            (new AuditLog())->log('delete', 'resources', (int)$id, $res, [],
-                'Διαγραφή πόρου: ' . $res['name']);
+
+        if (!$res) {
+            Session::flash('error', 'Ο πόρος δεν βρέθηκε.');
+            View::redirect('/resources');
         }
 
-        Session::flash('success', 'Ο πόρος διαγράφηκε.');
+        Middleware::requirePermissionEditor((int)$res['resource_type_id']);
+
+        // Count active permissions on this resource
+        $permCount = (int)$this->db->fetchColumn(
+            'SELECT COUNT(*) FROM permissions WHERE resource_id = ? AND is_active = 1',
+            [(int)$id]
+        );
+
+        // If permissions exist and user hasn't confirmed, ask for confirmation via AJAX
+        if ($permCount > 0 && empty($_POST['confirm_delete'])) {
+            // Return JSON for AJAX confirmation
+            header('Content-Type: application/json; charset=utf-8');
+            echo json_encode([
+                'confirm'    => true,
+                'permCount'  => $permCount,
+                'resourceName' => $res['name'],
+            ]);
+            exit;
+        }
+
+        $auditLog = new AuditLog();
+
+        // Deactivate all permissions on this resource
+        if ($permCount > 0) {
+            $perms = $this->db->fetchAll(
+                'SELECT p.*, u.full_name, u.username
+                 FROM permissions p
+                 JOIN users u ON u.id = p.user_id
+                 WHERE p.resource_id = ? AND p.is_active = 1',
+                [(int)$id]
+            );
+
+            $this->db->execute(
+                'UPDATE permissions SET is_active = 0 WHERE resource_id = ? AND is_active = 1',
+                [(int)$id]
+            );
+
+            foreach ($perms as $p) {
+                $auditLog->log('delete', 'permissions', (int)$p['id'], $p, [],
+                    'Αυτόματη απενεργοποίηση δικαιώματος λόγω διαγραφής πόρου «' . $res['name'] . '»: '
+                    . ($p['full_name'] ?? $p['username']) . ' / ' . $p['permission_level']);
+            }
+        }
+
+        $resModel->delete((int)$id);
+        $auditLog->log('delete', 'resources', (int)$id, $res, [],
+            'Διαγραφή πόρου: ' . $res['name'] . ($permCount > 0 ? " (αφαιρέθηκαν $permCount δικαιώματα)" : ''));
+
+        $msg = 'Ο πόρος «' . htmlspecialchars($res['name']) . '» διαγράφηκε.';
+        if ($permCount > 0) {
+            $msg .= " Απενεργοποιήθηκαν $permCount δικαιώματα.";
+        }
+        Session::flash('success', $msg);
         View::redirect('/resources');
     }
 
     /** Clone permissions from one resource to another */
     public function clonePermissions(string $id): void
     {
-        Middleware::requireAdmin();
         Csrf::check();
 
         $sourceId = (int)$id;
@@ -295,6 +390,14 @@ class SettingsController
         if (!$source || !$target) {
             Session::flash('error', 'Ο πόρος δεν βρέθηκε.');
             View::redirect('/resources');
+        }
+
+        // Check access for both source and target
+        Middleware::requirePermissionEditor((int)$source['resource_type_id']);
+        if (!Session::isAdmin() && !Session::isTypeAdmin((int)$target['resource_type_id'])) {
+            http_response_code(403);
+            View::render('errors/403', [], false);
+            exit;
         }
 
         if ($sourceId === $targetId) {
@@ -349,6 +452,79 @@ class SettingsController
 
         Session::flash('success', $msg);
         View::redirect("/resources/$targetId/permissions");
+    }
+
+    // ── Type Admins (Διαχειριστές Τύπου Πόρου) ─────────────────────────────
+
+    public function storeTypeAdmin(): void
+    {
+        Middleware::requireAdmin();
+        Csrf::check();
+
+        $username       = trim($_POST['username'] ?? '');
+        $resourceTypeId = (int)($_POST['resource_type_id'] ?? 0);
+
+        if (empty($username) || empty($resourceTypeId)) {
+            Session::flash('error', 'Συμπληρώστε χρήστη και τύπο πόρου.');
+            View::redirect('/settings');
+        }
+
+        // Find user
+        $userModel = new User();
+        $user = $userModel->findByUsername($username);
+        if (!$user) {
+            Session::flash('error', 'Ο χρήστης "' . htmlspecialchars($username) . '" δεν βρέθηκε.');
+            View::redirect('/settings');
+        }
+
+        // Check for duplicate
+        $existing = $this->db->fetchOne(
+            'SELECT id FROM user_type_admins WHERE user_id = ? AND resource_type_id = ?',
+            [$user['id'], $resourceTypeId]
+        );
+        if ($existing) {
+            Session::flash('error', 'Ο χρήστης είναι ήδη διαχειριστής αυτού του τύπου πόρου.');
+            View::redirect('/settings');
+        }
+
+        $id = $this->db->insert(
+            'INSERT INTO user_type_admins (user_id, resource_type_id, created_by) VALUES (?, ?, ?)',
+            [$user['id'], $resourceTypeId, Session::userId()]
+        );
+
+        $resModel = new Resource();
+        $type = $resModel->getTypeById($resourceTypeId);
+
+        (new AuditLog())->log('create', 'user_type_admins', $id, [],
+            ['user_id' => $user['id'], 'resource_type_id' => $resourceTypeId],
+            'Ανάθεση type admin: ' . ($user['full_name'] ?? $username) . ' → ' . ($type['label'] ?? ''));
+
+        Session::flash('success', 'Ο χρήστης <strong>' . htmlspecialchars($user['full_name'] ?? $username) . '</strong> ορίστηκε ως διαχειριστής τύπου «' . htmlspecialchars($type['label'] ?? '') . '».');
+        View::redirect('/settings');
+    }
+
+    public function deleteTypeAdmin(string $id): void
+    {
+        Middleware::requireAdmin();
+        Csrf::check();
+
+        $row = $this->db->fetchOne(
+            'SELECT uta.*, u.full_name, rt.label AS type_label
+             FROM user_type_admins uta
+             JOIN users u ON u.id = uta.user_id
+             JOIN resource_types rt ON rt.id = uta.resource_type_id
+             WHERE uta.id = ?',
+            [(int)$id]
+        );
+
+        if ($row) {
+            $this->db->execute('DELETE FROM user_type_admins WHERE id = ?', [(int)$id]);
+            (new AuditLog())->log('delete', 'user_type_admins', (int)$id, $row, [],
+                'Αφαίρεση type admin: ' . ($row['full_name'] ?? '') . ' → ' . ($row['type_label'] ?? ''));
+        }
+
+        Session::flash('success', 'Η ανάθεση αφαιρέθηκε.');
+        View::redirect('/settings');
     }
 
     /** Serve the documentation DOCX file (admin or Υποδ. Ψηφιακής Διακυβέρνησης) */
