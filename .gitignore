@@ -1,0 +1,36 @@
+# ============================================================
+# Permission Register - Git Ignore
+# ============================================================
+
+# Environment files (contain credentials!)
+.env
+
+# Composer dependencies
+/vendor/
+
+# Storage / logs
+/storage/logs/*.log
+
+# Claude Code
+.claude/
+
+# IDE / Editor files
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# OS files
+*.tmp
+*.bak
+*.orig
+
+
+# Test files
+public/test_mail_config.php
+public/test_ssl.php
+ToDo.txt
