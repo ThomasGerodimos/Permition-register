@@ -3,9 +3,9 @@
 use App\Core\Env;
 
 return [
-    'from_address' => Env::get('MAIL_FROM_ADDRESS', 'system@aml-authority.gov.gr'),
+    'from_address' => Env::get('MAIL_FROM_ADDRESS', 'system@yourdomain.com'),
     'from_name'    => Env::get('MAIL_FROM_NAME', 'Μητρώο Δικαιωμάτων'),
-    'reply_to'     => Env::get('MAIL_REPLY_TO', 'helpdesk@aml-authority.gov.gr'),
+    'reply_to'     => Env::get('MAIL_REPLY_TO', 'helpdesk@yourdomain.com'),
 
     // SMTP settings (used when MAIL_USE_OAUTH=false)
     'smtp' => [

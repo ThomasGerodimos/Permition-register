@@ -183,7 +183,7 @@ class LdapService
     /**
      * Resolve a manager DN to a display name.
      * The AD 'manager' attribute returns a full DN like:
-     * CN=Ιωάννης Παπαδόπουλος,OU=HFIU Users,DC=hfiu,DC=loc
+     * CN=John Doe,OU=Users,DC=domain,DC=loc
      */
     public function resolveManagerName(?string $managerDn): ?string
     {

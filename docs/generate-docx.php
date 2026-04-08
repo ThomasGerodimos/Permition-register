@@ -72,13 +72,10 @@ $cell2->addText('Τεχνική Τεκμηρίωση v2.1', ['size' => 8, 'color
 
 // Footer
 $footer = $section->addFooter();
-$footer->addPreserveText('ΑΚΝΕΕΔ — Υποδιεύθυνση Ψηφιακής Διακυβέρνησης                                                                          Σελίδα {PAGE} / {NUMPAGES}', ['size' => 7, 'color' => '999999'], 'Footer');
+$footer->addPreserveText('Μητρώο Δικαιωμάτων                                                                          Σελίδα {PAGE} / {NUMPAGES}', ['size' => 7, 'color' => '999999'], 'Footer');
 
 // ── Cover Page ─────────────────────────────────────────────────────────
 $section->addTextBreak(4);
-$section->addText('ΑΚΝΕΕΔ', ['size' => 12, 'color' => '666666'], ['alignment' => Jc::CENTER]);
-$section->addText('Αρχή Καταπολέμησης της Νομιμοποίησης', ['size' => 11, 'color' => '888888'], ['alignment' => Jc::CENTER, 'spaceAfter' => 0]);
-$section->addText('Εσόδων από Εγκληματικές Δραστηριότητες', ['size' => 11, 'color' => '888888'], ['alignment' => Jc::CENTER]);
 $section->addTextBreak(2);
 
 // Title

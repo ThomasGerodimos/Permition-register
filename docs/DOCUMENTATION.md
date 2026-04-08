@@ -26,7 +26,7 @@
 Το **Μητρώο Δικαιωμάτων** είναι εσωτερική web εφαρμογή για την καταγραφή και διαχείριση των δικαιωμάτων πρόσβασης χρηστών σε εταιρικούς πόρους (εφαρμογές, κοινόχρηστους φακέλους, κοινόχρηστα mailbox).
 
 ### Οργανισμός
-Αρχή Καταπολέμησης της Νομιμοποίησης Εσόδων από Εγκληματικές Δραστηριότητες (ΑΚΝΕΕΔ)
+YourOrganization
 
 ### Βασικά Χαρακτηριστικά
 - Καταχώρηση / τροποποίηση / διαγραφή δικαιωμάτων πρόσβασης
@@ -102,7 +102,7 @@ permissions/
 │       ├── js/
 │       │   └── app.js               ← Frontend JavaScript
 │       └── images/
-│           └── logo.png             ← Λογότυπο ΑΚΝΕΕΔ
+│           └── logo.png             ← Λογότυπο οργανισμού
 │
 ├── src/                             ← Application Code (namespace: App\)
 │   ├── Core/
@@ -833,7 +833,7 @@ copy .env.example .env
 ```env
 # .env (Production)
 APP_ENV=production
-APP_URL=https://permissions.hfiu.loc
+APP_URL=https://permissions.yourdomain.com
 
 DB_HOST=127.0.0.1
 DB_PORT=3306
@@ -841,24 +841,24 @@ DB_NAME=permissions_db
 DB_USER=permissions_user
 DB_PASS=STRONG_PASSWORD_HERE
 
-LDAP_HOST=ldap://APPINT01.hfiu.loc
+LDAP_HOST=ldap://your-dc.domain.loc
 LDAP_PORT=389
 LDAP_USE_TLS=false
-LDAP_DOMAIN=hfiu.loc
-LDAP_BASE_DN=DC=hfiu,DC=loc
-LDAP_USERS_OU=OU=Users,DC=hfiu,DC=loc
-LDAP_BIND_USER="CN=svc-permreg,OU=Service Accounts,DC=hfiu,DC=loc"
+LDAP_DOMAIN=domain.loc
+LDAP_BASE_DN=DC=domain,DC=loc
+LDAP_USERS_OU=OU=Users,DC=domain,DC=loc
+LDAP_BIND_USER="CN=svc-permreg,OU=Service Accounts,DC=domain,DC=loc"
 LDAP_BIND_PASS=SERVICE_ACCOUNT_PASSWORD
-LDAP_ADMIN_GROUP="CN=IT,OU=HFIU Users,DC=hfiu,DC=loc"
-LDAP_MANAGER_GROUP="CN=Managers,OU=HFIU Users,DC=hfiu,DC=loc"
+LDAP_ADMIN_GROUP="CN=PermRegAdmins,OU=Groups,DC=domain,DC=loc"
+LDAP_MANAGER_GROUP="CN=PermRegManagers,OU=Groups,DC=domain,DC=loc"
 
-MAIL_FROM_ADDRESS=permissions@hfiu.loc
+MAIL_FROM_ADDRESS=permissions@yourdomain.com
 MAIL_FROM_NAME=Μητρώο Δικαιωμάτων
-MAIL_REPLY_TO=helpdesk@hfiu.loc
+MAIL_REPLY_TO=helpdesk@yourdomain.com
 MAIL_HOST=smtp.office365.com
 MAIL_PORT=587
 MAIL_ENCRYPTION=tls
-MAIL_USERNAME=permissions@hfiu.loc
+MAIL_USERNAME=permissions@yourdomain.com
 MAIL_PASSWORD=SMTP_PASSWORD
 MAIL_TIMEOUT=10
 
@@ -898,7 +898,7 @@ SOURCE /path/to/permissions/database/migrations/002_resource_expires_at.sql;
 **Virtual Host:**
 ```apache
 <VirtualHost *:80>
-    ServerName permissions.hfiu.loc
+    ServerName permissions.yourdomain.com
     DocumentRoot "C:/inetpub/wwwroot/permissions/public"
 
     <Directory "C:/inetpub/wwwroot/permissions/public">
@@ -950,7 +950,7 @@ chmod 755 storage/logs/      # ή ανάλογα NTFS permissions σε Windows
 #### 6. DNS Record
 Δημιουργήστε A record στον internal DNS:
 ```
-permissions.hfiu.loc → IP_OF_SERVER
+permissions.yourdomain.com → IP_OF_SERVER
 ```
 
 ---
@@ -1204,4 +1204,4 @@ mysqldump -u permissions_user -p permissions_db > "C:\backups\permissions_db_%da
 | **Ημερομηνία** | Απρίλιος 2026 |
 | **Ανάπτυξη** | Τμήμα Ανάπτυξης και Υποστήριξης Εφαρμογών |
 | **Υποδιεύθυνση** | Ψηφιακής Διακυβέρνησης |
-| **Οργανισμός** | ΑΚΝΕΕΔ |
+| **Οργανισμός** | YourOrganization |

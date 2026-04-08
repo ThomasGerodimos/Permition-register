@@ -24,10 +24,9 @@ $role   = Session::role();
 <header class="app-header bg-white border-bottom" style="border-bottom-width:3px!important;border-color:#1a5276!important;">
     <div class="container-fluid px-3 py-2">
         <div class="d-flex align-items-center gap-3">
-            <img src="<?= $appUrl ?>/assets/images/logo.png" alt="ΑΚΝΕΕΔ" style="height:44px;width:auto;">
+            <img src="<?= $appUrl ?>/assets/images/logo.png" alt="Organization Logo" style="height:44px;width:auto;">
             <div style="font-size:1.05rem;font-weight:700;line-height:1.35;color:#1a3c5e;text-align:center;flex:1;">
-                Αρχή Καταπολέμησης της Νομιμοποίησης
-                Εσόδων από Εγκληματικές Δραστηριότητες
+                Μητρώο Δικαιωμάτων
             </div>
             <div style="width:44px;flex-shrink:0;"></div>
         </div>

@@ -86,10 +86,9 @@ $error   = Session::flash('error');
 <header class="login-header">
     <div class="container">
         <div class="d-flex align-items-center gap-3">
-            <img src="<?= $appUrl ?>/assets/images/logo.png" alt="ΑΚΝΕΕΔ" class="logo-img">
+            <img src="<?= $appUrl ?>/assets/images/logo.png" alt="Organization Logo" class="logo-img">
             <div class="org-title">
-                Αρχή Καταπολέμησης της Νομιμοποίησης
-                Εσόδων από Εγκληματικές Δραστηριότητες
+                Μητρώο Δικαιωμάτων
             </div>
             <!-- spacer to balance the logo and keep title centered -->
             <div style="width:52px; flex-shrink:0;"></div>
