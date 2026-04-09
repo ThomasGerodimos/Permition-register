@@ -1,4 +1,4 @@
-# Μητρώο Δικαιωμάτων (Permission Register)
+# Permission Register
 
 Web application for managing user access permissions to organizational resources, with Active Directory integration.
 
