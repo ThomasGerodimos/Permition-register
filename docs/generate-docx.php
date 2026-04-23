@@ -89,7 +89,7 @@ $section->addText('', [], ['borderBottomSize' => 12, 'borderBottomColor' => '2c5
 // Info table
 $infoTable = $section->addTable(['borderSize' => 0, 'cellMarginTop' => 40, 'cellMarginBottom' => 40]);
 $infoData = [
-    ['Έκδοση', '2.1'],
+    ['Έκδοση', '2.2'],
     ['Ημερομηνία', 'Απρίλιος 2026'],
     ['Ανάπτυξη', 'Τμήμα Ανάπτυξης και Υποστήριξης Εφαρμογών'],
     ['Υποδιεύθυνση', 'Ψηφιακής Διακυβέρνησης'],
