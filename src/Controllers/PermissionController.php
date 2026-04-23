@@ -388,6 +388,118 @@ class PermissionController
         View::redirect('/permissions');
     }
 
+    // ── Copy Permissions (user → user) ─────────────────────────────────────────
+
+    public function copyToUser(string $id): void
+    {
+        Middleware::requirePermissionEditor();
+        Csrf::check();
+
+        $userModel  = new User();
+        $sourceUser = $userModel->findById((int)$id);
+        if (!$sourceUser) {
+            Session::flash('error', 'Ο χρήστης-πηγή δεν βρέθηκε.');
+            View::redirect('/users');
+        }
+
+        $targetUsername = trim($_POST['target_username'] ?? '');
+        if (empty($targetUsername)) {
+            Session::flash('error', 'Δώστε username προορισμού.');
+            View::redirect('/users/' . $id);
+        }
+
+        // Find target user in local DB; try AD sync if missing
+        $targetUser = $userModel->findByUsername($targetUsername);
+        if (!$targetUser) {
+            try {
+                (new \App\Services\AdService())->fetchAndSync($targetUsername);
+                $targetUser = $userModel->findByUsername($targetUsername);
+            } catch (\Throwable $e) {
+                // AD lookup failed — continue to "not found" error
+            }
+        }
+        if (!$targetUser) {
+            Session::flash('error', 'Ο χρήστης «' . htmlspecialchars($targetUsername) . '» δεν βρέθηκε.');
+            View::redirect('/users/' . $id);
+        }
+
+        if ((int)$targetUser['id'] === (int)$id) {
+            Session::flash('error', 'Πηγή και προορισμός είναι ο ίδιος χρήστης.');
+            View::redirect('/users/' . $id);
+        }
+
+        $keepExpiry = !empty($_POST['keep_expiry']);
+        $keepNotes  = !empty($_POST['keep_notes']);
+
+        // Fetch source permissions
+        $permModel   = new Permission();
+        $sourcePerms = $permModel->getByUser((int)$id);
+
+        // Type-admins: restrict to their assigned resource types
+        if (!Session::isAdmin() && Session::isTypeAdmin()) {
+            $allowedTypeIds = Session::getTypeAdminTypes();
+            $sourcePerms = array_values(array_filter(
+                $sourcePerms,
+                fn($p) => in_array((int)($p['resource_type_id'] ?? 0), $allowedTypeIds, true)
+            ));
+        }
+
+        if (empty($sourcePerms)) {
+            Session::flash('error', 'Δεν υπάρχουν δικαιώματα προς αντιγραφή.');
+            View::redirect('/users/' . $id);
+        }
+
+        $auditLog  = new AuditLog();
+        $grantedBy = Session::userId();
+        $db        = \App\Core\Database::getInstance();
+        $created   = 0;
+        $skipped   = 0;
+
+        $db->beginTransaction();
+        try {
+            foreach ($sourcePerms as $p) {
+                $data = [
+                    'user_id'          => $targetUser['id'],
+                    'resource_id'      => $p['resource_id'],
+                    'permission_level' => $p['permission_level'],
+                    'granted_by'       => $grantedBy,
+                    'notes'            => $keepNotes ? ($p['notes'] ?? null) : null,
+                    'expires_at'       => $keepExpiry ? ($p['expires_at'] ?? null) : null,
+                ];
+
+                try {
+                    $newId = $permModel->create($data);
+                    $auditLog->log('create', 'permissions', $newId, [], $data,
+                        'Αντιγραφή δικαιώματος από '
+                        . ($sourceUser['full_name'] ?? $sourceUser['username'])
+                        . ' → ' . ($targetUser['full_name'] ?? $targetUser['username'])
+                        . ': ' . ($p['resource_name'] ?? '') . ' (' . $p['permission_level'] . ')');
+                    $created++;
+                } catch (\PDOException $e) {
+                    if ($e->getCode() == '23000') {
+                        $skipped++; // Duplicate — target already has this permission
+                    } else {
+                        throw $e;
+                    }
+                }
+            }
+            $db->commit();
+        } catch (\Throwable $e) {
+            $db->rollBack();
+            Session::flash('error', 'Σφάλμα κατά την αντιγραφή: ' . $e->getMessage());
+            View::redirect('/users/' . $id);
+        }
+
+        $targetName = htmlspecialchars($targetUser['full_name'] ?? $targetUser['username']);
+        $msg = "Αντιγράφηκαν <strong>{$created}</strong> δικαιώματα στον χρήστη <strong>{$targetName}</strong>.";
+        if ($skipped > 0) {
+            $msg .= " <span class='text-warning'>{$skipped} παραλείφθηκαν (υπάρχουν ήδη).</span>";
+        }
+
+        Session::flash('success', $msg);
+        View::redirect('/users/' . $targetUser['id']);
+    }
+
     private function extractFormData(): array
     {
         return [

@@ -44,6 +44,9 @@ YourOrganization
 - **Ημερομηνία λήξης πόρου** (`expires_at`): Ορισμός ημ/νίας λήξης σε πόρους (v2.1)
 - **Μαζική αφαίρεση δικαιωμάτων**: Επιλογή πολλαπλών χρηστών και bulk soft-delete (v2.1)
 - **Μαζικός ορισμός λήξης δικαιωμάτων**: Ορισμός/αφαίρεση ημ/νίας λήξης σε επιλεγμένα δικαιώματα (v2.1)
+- **Εισαγωγή νέου χρήστη από AD**: Εισαγωγή άμεσα από τη σελίδα Χρηστών, χωρίς να χρειαστεί login ο χρήστης (v2.2)
+- **IP restrictions για Διαχειριστές Τύπου Πόρου**: Ορισμός επιτρεπόμενων IPs για τον ρόλο type_admin (v2.2)
+- **Αντιγραφή δικαιωμάτων χρήστη → χρήστη**: Αντιγραφή όλων ή μέρους δικαιωμάτων σε άλλον χρήστη, με AD autocomplete, επιλογές λήξης/σημειώσεων (v2.2)
 - Υποστήριξη SSL (δυναμικό secure cookie)
 - Responsive σχεδιασμός (Bootstrap 5)
 
@@ -178,7 +181,8 @@ permissions/
 │   ├── seed.sql                     ← Αρχικά δεδομένα
 │   └── migrations/
 │       ├── 001_user_type_admins.sql ← Πίνακας type-admin αναθέσεων
-│       └── 002_resource_expires_at.sql ← Στήλη λήξης πόρων (v2.1)
+│       ├── 002_resource_expires_at.sql ← Στήλη λήξης πόρων (v2.1)
+│       └── 003_ip_restriction_type_admin.sql ← ENUM type_admin για ip_restrictions (v2.2)
 │
 ├── storage/
 │   └── logs/                        ← Application logs
@@ -320,7 +324,7 @@ permissions/
 | Στήλη | Τύπος | Περιγραφή |
 |-------|-------|-----------|
 | id | INT UNSIGNED PK | Αυτόματος αριθμός |
-| role | ENUM('admin','manager') | Ρόλος |
+| role | ENUM('admin','manager','type_admin') | Ρόλος — v2.2 προστέθηκε `type_admin` |
 | ip_range | VARCHAR(50) | IP ή CIDR (π.χ. 192.168.1.0/24) |
 | description | VARCHAR(200) | Περιγραφή |
 | is_active | TINYINT(1) DEFAULT 1 | Ενεργός κανόνας |
@@ -356,6 +360,10 @@ CREATE TABLE IF NOT EXISTS `user_type_admins` (
 -- database/migrations/002_resource_expires_at.sql (v2.1)
 ALTER TABLE `resources`
   ADD COLUMN `expires_at` DATE DEFAULT NULL AFTER `location`;
+
+-- database/migrations/003_ip_restriction_type_admin.sql (v2.2)
+ALTER TABLE `ip_restrictions`
+  MODIFY COLUMN `role` ENUM('admin','manager','type_admin') NOT NULL;
 ```
 
 ---
@@ -409,7 +417,9 @@ ALTER TABLE `resources`
 | Πόροι — Μαζική αφαίρεση δικ. | ✅ | ❌ | ✅ Μόνο ανατ. τύποι |
 | Πόροι — Μαζικός ορισμός λήξης | ✅ | ❌ | ✅ Μόνο ανατ. τύποι |
 | Χρήστες — Προβολή | ✅ Όλοι | ✅ Μόνο τμήμα | ✅ Cross-dept (χρήστες με ανατ. τύπους) |
+| Χρήστες — Εισαγωγή από AD | ✅ | ❌ | ❌ |
 | Χρήστες — AD Sync | ✅ | ❌ | ❌ |
+| Αντιγραφή δικαιωμάτων χρήστη→χρήστη | ✅ | ❌ | ✅ Μόνο ανατ. τύποι |
 | Ιστορικό (Audit) | ✅ | ❌ | ❌ |
 | Ρυθμίσεις (IP + Type Admins) | ✅ | ❌ | ❌ |
 | Εξαγωγές (CSV/XLS/PDF) | ✅ Όλα | ✅ Μόνο τμήμα | ✅ Μόνο ανατ. τύποι |
@@ -423,6 +433,7 @@ ALTER TABLE `resources`
 - Υποστήριξη: μεμονωμένη IP και CIDR notation (π.χ. `192.168.1.0/24`)
 - Αν **δεν** υπάρχουν κανόνες για έναν ρόλο → επιτρέπεται κάθε IP
 - Αν **υπάρχουν** κανόνες → μόνο οι επιτρεπόμενες IPs
+- **v2.2**: Υποστήριξη ρόλου `type_admin` — χρήστες viewer με type-admin αναθέσεις ελέγχονται και ανεξάρτητα για `type_admin` IP rules
 
 ---
 
@@ -442,14 +453,16 @@ ALTER TABLE `resources`
 - **Επεξεργασία**: Αλλαγή πόρου, επιπέδου, σημειώσεων, ημ/νίας λήξης
 - **Διαγραφή**: Soft delete (is_active = 0)
 - **Μαζική Ανάθεση**: Επιλογή πολλών χρηστών, ίδιος πόρος + δικαίωμα
-- Type-admins: βλέπουν/διαχειρίζονται μόνο δικαιώματα στους ανατεθειμένους τύπους (κουμπιά edit/delete per row)
+- **Αντιγραφή δικαιωμάτων χρήστη→χρήστη** (v2.2): Από το προφίλ χρήστη, κουμπί "Αντιγραφή" → modal με AD autocomplete για τον χρήστη-στόχο, επιλογές διατήρησης λήξης/σημειώσεων, preview λίστα δικαιωμάτων. Duplicates παραλείπονται αυτόματα. Audit log ανά νέο δικαίωμα. Redirect στο προφίλ του χρήστη-στόχου
+- Type-admins: βλέπουν/διαχειρίζονται μόνο δικαιώματα στους ανατεθειμένους τύπους (κουμπιά edit/delete per row, αντιγραφή scoped)
 
 ### 6.3 Χρήστες
 - Κάρτες χρηστών με live search και φίλτρο τμήματος
 - Προφίλ χρήστη: Στοιχεία + Προϊστάμενος (από AD) + δικαιώματα
+- **Εισαγωγή από AD** (v2.2): Admin πληκτρολογεί username στο mini-form (με AD autocomplete) → ο χρήστης εισάγεται αμέσως στη local βάση χωρίς να χρειαστεί να κάνει login ο ίδιος
 - AD Sync: Μαζικός συγχρονισμός όλων των χρηστών από το Active Directory
 - Export PDF/Excel + αποστολή email ανά χρήστη
-- Type-admins: βλέπουν cross-department χρήστες που έχουν δικαιώματα στους ανατεθειμένους τύπους
+- Type-admins: βλέπουν cross-department χρήστες που έχουν δικαιώματα στους ανατεθειμένους τύπους, με edit/delete buttons για τα δικά τους δικαιώματα ανά γραμμή (v2.2)
 
 ### 6.4 Πόροι
 - Λίστα πόρων με search, φίλτρο τύπου, pagination
@@ -528,10 +541,17 @@ ALTER TABLE `resources`
 4. Αυτόματο sync στην τοπική βάση
 5. Εμφάνιση dropdown με αποτελέσματα
 
+### Εισαγωγή Νέου Χρήστη από AD (v2.2)
+- Mini-form "Εισαγωγή από AD" στη σελίδα Χρηστών (admin only)
+- Admin πληκτρολογεί username → AD autocomplete dropdown → submit
+- Καλεί `AdService::fetchAndSync($username)` → upsert στη local DB
+- Χρήσιμο όταν νέος χρήστης προστέθηκε στο AD αλλά δεν έχει κάνει ακόμα login
+
 ### Μαζικός Συγχρονισμός (AD Sync)
 - Κουμπί "Συγχρονισμός AD" στη σελίδα Χρηστών
 - Για κάθε χρήστη στην τοπική βάση → `LdapService::findUser()` → update
 - Ενημερώνει: full_name, email, department, job_title, phone, manager
+- **Σημείωση**: Ενημερώνει μόνο ήδη υπάρχοντες χρήστες. Για νέους χρήστες → χρησιμοποιήστε "Εισαγωγή από AD"
 
 ### Login — Type-Admin Viewers (v2.0)
 - Χρήστες χωρίς AD group (role = viewer) μπορούν να συνδεθούν **μόνο αν έχουν** εγγραφή στο `user_type_admins`
@@ -619,6 +639,8 @@ ALTER TABLE `resources`
 | POST | `/permissions/bulk` | PermissionController::bulkStore | Μαζική αποθήκευση | Editor¹ |
 | GET | `/users` | UserController::index | Λίστα χρηστών | Login |
 | POST | `/users/sync-ad` | UserController::syncAd | AD Sync | Admin |
+| POST | `/users/import-from-ad` | UserController::importFromAd | Εισαγωγή χρήστη από AD | Admin |
+| POST | `/users/{id}/copy-permissions` | PermissionController::copyToUser | Αντιγραφή δικαιωμάτων χρήστη→χρήστη | Editor¹ |
 | GET | `/users/{id}` | UserController::show | Προφίλ χρήστη | Login |
 | GET | `/audit` | AuditController::index | Ιστορικό | Admin |
 | GET | `/export/csv` | ExportController::csv | Export CSV | Login |
@@ -740,6 +762,7 @@ SOURCE C:/wamp64/www/permissions/database/schema.sql;
 SOURCE C:/wamp64/www/permissions/database/seed.sql;
 SOURCE C:/wamp64/www/permissions/database/migrations/001_user_type_admins.sql;
 SOURCE C:/wamp64/www/permissions/database/migrations/002_resource_expires_at.sql;
+SOURCE C:/wamp64/www/permissions/database/migrations/003_ip_restriction_type_admin.sql;
 ```
 
 #### 5. Ρύθμιση Apache
@@ -891,6 +914,7 @@ SOURCE /path/to/permissions/database/schema.sql;
 SOURCE /path/to/permissions/database/seed.sql;
 SOURCE /path/to/permissions/database/migrations/001_user_type_admins.sql;
 SOURCE /path/to/permissions/database/migrations/002_resource_expires_at.sql;
+SOURCE /path/to/permissions/database/migrations/003_ip_restriction_type_admin.sql;
 ```
 
 #### 4. Ρύθμιση Apache (Production)
@@ -980,6 +1004,7 @@ permissions.yourdomain.com → IP_OF_SERVER
 | 17 | `.env` ΔΕΝ είναι accessible μέσω web | ☐ |
 | 18 | Migration `001_user_type_admins.sql` εκτελέστηκε | ☐ |
 | 18b | Migration `002_resource_expires_at.sql` εκτελέστηκε | ☐ |
+| 18c | Migration `003_ip_restriction_type_admin.sql` εκτελέστηκε | ☐ |
 | 19 | Test login/logout | ☐ |
 | 20 | Test CRUD δικαιωμάτων | ☐ |
 | 21 | Test export (CSV, Excel, PDF) | ☐ |
@@ -1137,6 +1162,23 @@ mysqldump -u permissions_user -p permissions_db > "C:\backups\permissions_db_%da
 
 ## 15. Ιστορικό Αλλαγών
 
+### v2.2 — Απρίλιος 2026
+
+#### Νέα Χαρακτηριστικά
+- **Αντιγραφή δικαιωμάτων χρήστη → χρήστη**: Κουμπί "Αντιγραφή" στο προφίλ χρήστη (εμφανίζεται μόνο αν υπάρχουν δικαιώματα). Modal με: AD autocomplete για τον χρήστη-στόχο, checkboxes "Διατήρηση ημ/νίας λήξης" + "Διατήρηση σημειώσεων" (default: on), preview λίστα δικαιωμάτων. Duplicates παραλείπονται (unique constraint). Audit log ανά νέο δικαίωμα. Redirect στο προφίλ του στόχου με flash message
+- **Εισαγωγή νέου χρήστη από AD**: Admin-only mini-form στη σελίδα Χρηστών. Username input με AD autocomplete. Καλεί `AdService::fetchAndSync()` → upsert στη local DB. Επιλύει το πρόβλημα "νέος χρήστης δεν εμφανίζεται γιατί δεν έχει κάνει login"
+- **IP restrictions για type_admin**: Ο ρόλος `type_admin` προστέθηκε στα IP restrictions. Στις Ρυθμίσεις μπορεί να οριστεί allowlist IP για Διαχειριστές Τύπου Πόρου. Κατά το login, οι viewer+type-admin χρήστες ελέγχονται ανεξάρτητα ως `type_admin`
+- **Edit/Delete buttons για type-admin σε user_view**: Στο προφίλ χρήστη, ο type-admin βλέπει πλέον τα κουμπιά επεξεργασίας/διαγραφής για δικαιώματα στους ανατεθειμένους τύπους του
+
+#### Τεχνικές Αλλαγές
+- `PermissionController::copyToUser()` — νέα μέθοδος, POST, wrapped σε DB transaction
+- `UserController::importFromAd()` — νέα μέθοδος, admin only
+- Routes: `POST /users/import-from-ad`, `POST /users/{id}/copy-permissions`
+- `AuthController::login()` — IP check για `type_admin` role
+- Migration `003_ip_restriction_type_admin.sql` — `ALTER TABLE ip_restrictions MODIFY COLUMN role ENUM(..., 'type_admin')`
+- `views/permissions/user_view.php` — "Αντιγραφή" button + modal + JS autocomplete + type-admin edit/delete scoping
+- `views/permissions/users.php` — "Εισαγωγή από AD" card με autocomplete
+
 ### v2.1 — Απρίλιος 2026
 
 #### Νέα Χαρακτηριστικά
@@ -1200,7 +1242,7 @@ mysqldump -u permissions_user -p permissions_db > "C:\backups\permissions_db_%da
 
 | | |
 |---|---|
-| **Έκδοση** | 2.1 |
+| **Έκδοση** | 2.2 |
 | **Ημερομηνία** | Απρίλιος 2026 |
 | **Ανάπτυξη** | Τμήμα Ανάπτυξης και Υποστήριξης Εφαρμογών |
 | **Υποδιεύθυνση** | Ψηφιακής Διακυβέρνησης |

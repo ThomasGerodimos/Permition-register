@@ -68,7 +68,9 @@ $router->post('/permissions/{id}/delete', [PermissionController::class, 'delete'
 // Users
 $router->get('/users',               [UserController::class, 'index']);
 $router->post('/users/sync-ad',      [UserController::class, 'syncAd']);
-$router->get('/users/{id}',          [UserController::class, 'show']);
+$router->post('/users/import-from-ad',        [UserController::class,      'importFromAd']);
+$router->post('/users/{id}/copy-permissions', [PermissionController::class, 'copyToUser']);
+$router->get('/users/{id}',                   [UserController::class,      'show']);
 
 // Department view
 $router->get('/departments/view',    [DashboardController::class, 'departmentView']);

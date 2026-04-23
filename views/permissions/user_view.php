@@ -54,10 +54,18 @@ $qs     = http_build_query(['user_id' => $user['id']]);
                     <i class="bi bi-key-fill me-1 text-primary"></i>
                     Δικαιώματα Πρόσβασης (<?= count($permissions) ?>)
                 </span>
-                <?php if (Session::isAdmin()): ?>
-                <a href="<?= $appUrl ?>/permissions/create" class="btn btn-sm btn-primary">
-                    <i class="bi bi-plus-lg"></i> Νέο
-                </a>
+                <?php if (Session::isAdmin() || Session::isTypeAdmin()): ?>
+                <div class="d-flex gap-2">
+                    <?php if (!empty($permissions)): ?>
+                    <button type="button" class="btn btn-sm btn-outline-secondary"
+                            data-bs-toggle="modal" data-bs-target="#copyPermsModal">
+                        <i class="bi bi-copy"></i> Αντιγραφή
+                    </button>
+                    <?php endif; ?>
+                    <a href="<?= $appUrl ?>/permissions/create" class="btn btn-sm btn-primary">
+                        <i class="bi bi-plus-lg"></i> Νέο
+                    </a>
+                </div>
                 <?php endif; ?>
             </div>
             <div class="card-body p-0">
@@ -90,7 +98,7 @@ $qs     = http_build_query(['user_id' => $user['id']]);
                                 <th data-sort="text">Εγκρίθηκε από</th>
                                 <th data-sort="date">Ημ/νία</th>
                                 <th data-sort="date">Λήξη</th>
-                                <?php if (Session::isAdmin()): ?><th></th><?php endif; ?>
+                                <?php if (Session::isAdmin() || Session::isTypeAdmin()): ?><th></th><?php endif; ?>
                             </tr>
                         </thead>
                         <tbody>
@@ -103,8 +111,8 @@ $qs     = http_build_query(['user_id' => $user['id']]);
                             <td class="text-muted small">
                                 <?= $p['expires_at'] ? substr($p['expires_at'],0,10) : '—' ?>
                             </td>
-                            <?php if (Session::isAdmin()): ?>
-                            <td>
+                            <?php if (Session::isAdmin() || Session::isTypeAdmin((int)($p['resource_type_id'] ?? 0))): ?>
+                            <td class="text-nowrap">
                                 <a href="<?= $appUrl ?>/permissions/<?= $p['id'] ?>/edit"
                                    class="btn btn-sm btn-outline-secondary"><i class="bi bi-pencil"></i></a>
                                 <form method="POST" action="<?= $appUrl ?>/permissions/<?= $p['id'] ?>/delete"
@@ -113,6 +121,8 @@ $qs     = http_build_query(['user_id' => $user['id']]);
                                     <button class="btn btn-sm btn-outline-danger"><i class="bi bi-trash3"></i></button>
                                 </form>
                             </td>
+                            <?php elseif (Session::isTypeAdmin()): ?>
+                            <td></td>
                             <?php endif; ?>
                         </tr>
                         <?php endforeach; ?>
@@ -125,6 +135,154 @@ $qs     = http_build_query(['user_id' => $user['id']]);
         </div>
     </div>
 </div>
+
+<!-- Copy Permissions Modal -->
+<?php if ((Session::isAdmin() || Session::isTypeAdmin()) && !empty($permissions)): ?>
+<?php
+// For type-admins, only show the permissions they can copy (their assigned types)
+$copyablePerms = $permissions;
+if (!Session::isAdmin() && Session::isTypeAdmin()) {
+    $allowedTypeIds = Session::getTypeAdminTypes();
+    $copyablePerms = array_values(array_filter(
+        $permissions,
+        fn($p) => in_array((int)($p['resource_type_id'] ?? 0), $allowedTypeIds, true)
+    ));
+}
+?>
+<div class="modal fade" id="copyPermsModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="bi bi-copy me-1 text-primary"></i>
+                    Αντιγραφή Δικαιωμάτων
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" action="<?= $appUrl ?>/users/<?= $user['id'] ?>/copy-permissions">
+                <?= Csrf::field() ?>
+                <div class="modal-body">
+                    <p class="text-muted small mb-3">
+                        Αντιγραφή <strong><?= count($copyablePerms) ?></strong> δικαιωμάτων
+                        του <strong><?= View::e($user['full_name'] ?: $user['username']) ?></strong>
+                        σε άλλον χρήστη.
+                    </p>
+
+                    <!-- Target user -->
+                    <div class="mb-3 position-relative">
+                        <label class="form-label fw-semibold">
+                            Χρήστης Προορισμού <span class="text-danger">*</span>
+                        </label>
+                        <input type="text" name="target_username" id="copyTargetInput"
+                               class="form-control" placeholder="username (π.χ. k.papadopoulos)"
+                               autocomplete="off" required>
+                        <div id="copyTargetSuggest"
+                             class="list-group position-absolute shadow-sm w-100"
+                             style="z-index:1060;display:none;top:100%;left:0;"></div>
+                        <div class="form-text">Αναζητά τον χρήστη στη local βάση ή στο Active Directory.</div>
+                    </div>
+
+                    <!-- Options -->
+                    <div class="d-flex gap-4 mb-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox"
+                                   name="keep_expiry" id="copyKeepExpiry" value="1" checked>
+                            <label class="form-check-label" for="copyKeepExpiry">
+                                <i class="bi bi-calendar-x me-1 text-muted"></i>Διατήρηση ημ/νίας λήξης
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox"
+                                   name="keep_notes" id="copyKeepNotes" value="1" checked>
+                            <label class="form-check-label" for="copyKeepNotes">
+                                <i class="bi bi-chat-left-text me-1 text-muted"></i>Διατήρηση σημειώσεων
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Permissions preview -->
+                    <?php if (!empty($copyablePerms)): ?>
+                    <div class="border rounded bg-light" style="max-height:220px;overflow-y:auto;">
+                        <div class="px-3 py-2 border-bottom small text-muted fw-semibold">
+                            Δικαιώματα προς αντιγραφή:
+                        </div>
+                        <?php foreach ($copyablePerms as $cp): ?>
+                        <div class="d-flex align-items-center gap-2 px-3 py-2 border-bottom border-light-subtle">
+                            <i class="<?= View::e($cp['type_icon'] ?? 'bi-file-earmark') ?> text-muted small"></i>
+                            <span class="small text-muted"><?= View::e($cp['type_label']) ?></span>
+                            <span class="mx-1 text-muted">›</span>
+                            <span class="small fw-semibold"><?= View::e($cp['resource_name']) ?></span>
+                            <span class="badge bg-primary ms-auto"><?= View::e($cp['permission_level']) ?></span>
+                            <?php if (!empty($cp['expires_at'])): ?>
+                            <span class="badge bg-light text-muted border"><?= substr($cp['expires_at'],0,10) ?></span>
+                            <?php endif; ?>
+                        </div>
+                        <?php endforeach; ?>
+                    </div>
+                    <?php else: ?>
+                    <div class="alert alert-warning small py-2">
+                        <i class="bi bi-exclamation-triangle me-1"></i>
+                        Δεν υπάρχουν δικαιώματα για τους τύπους πόρων που διαχειρίζεστε.
+                    </div>
+                    <?php endif; ?>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Ακύρωση</button>
+                    <button type="submit" class="btn btn-primary" <?= empty($copyablePerms) ? 'disabled' : '' ?>>
+                        <i class="bi bi-copy me-1"></i> Αντιγραφή Δικαιωμάτων
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+<script>
+(function () {
+    const input   = document.getElementById('copyTargetInput');
+    const suggest = document.getElementById('copyTargetSuggest');
+    if (!input || !suggest) return;
+
+    let debounce;
+    input.addEventListener('input', function () {
+        clearTimeout(debounce);
+        const q = this.value.trim();
+        if (q.length < 2) { suggest.style.display = 'none'; return; }
+        debounce = setTimeout(function () {
+            fetch(APP_URL + '/api/ad/search?q=' + encodeURIComponent(q), {
+                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+            })
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+                suggest.innerHTML = '';
+                if (!data.length) { suggest.style.display = 'none'; return; }
+                data.forEach(function (u) {
+                    const a = document.createElement('a');
+                    a.className = 'list-group-item list-group-item-action small py-1';
+                    a.href = '#';
+                    a.innerHTML = '<strong class="font-monospace">' + u.username + '</strong>'
+                                + ' — ' + (u.full_name || '')
+                                + (u.department ? ' <span class="text-muted">(' + u.department + ')</span>' : '');
+                    a.addEventListener('click', function (e) {
+                        e.preventDefault();
+                        input.value = u.username;
+                        suggest.style.display = 'none';
+                    });
+                    suggest.appendChild(a);
+                });
+                suggest.style.display = 'block';
+            })
+            .catch(function () { suggest.style.display = 'none'; });
+        }, 300);
+    });
+
+    document.addEventListener('click', function (e) {
+        if (!input.contains(e.target) && !suggest.contains(e.target)) {
+            suggest.style.display = 'none';
+        }
+    });
+})();
+</script>
+<?php endif; ?>
 
 <!-- Email Modal (simplified) -->
 <div class="modal fade" id="emailModal" tabindex="-1">

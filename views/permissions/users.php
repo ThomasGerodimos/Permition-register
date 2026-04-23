@@ -40,7 +40,33 @@ $pages   = (int)ceil($total / $perPage);
     </div>
 </form>
 
-<!-- Count + AD Sync -->
+<!-- Import from AD + Count + AD Sync -->
+<?php if (Session::isAdmin()): ?>
+<div class="card border-0 shadow-sm mb-3">
+    <div class="card-body py-2">
+        <form method="POST" action="<?= $appUrl ?>/users/import-from-ad"
+              class="d-flex gap-2 align-items-center flex-wrap">
+            <?= \App\Core\Csrf::field() ?>
+            <i class="bi bi-person-plus-fill text-primary"></i>
+            <label class="fw-semibold small text-nowrap mb-0">Εισαγωγή από AD:</label>
+            <div class="position-relative flex-grow-1" style="min-width:200px;max-width:320px;">
+                <input type="text" name="username" id="importAdInput"
+                       class="form-control form-control-sm font-monospace"
+                       placeholder="username (π.χ. e.bampali)"
+                       autocomplete="off" required>
+                <div id="importAdSuggest"
+                     class="list-group position-absolute shadow-sm w-100"
+                     style="z-index:1050;display:none;top:100%;left:0;"></div>
+            </div>
+            <button type="submit" class="btn btn-sm btn-primary text-nowrap">
+                <i class="bi bi-box-arrow-in-down me-1"></i>Εισαγωγή
+            </button>
+            <span class="text-muted small">Αναζητά και εισάγει νέο χρήστη απευθείας από το Active Directory</span>
+        </form>
+    </div>
+</div>
+<?php endif; ?>
+
 <div class="d-flex justify-content-between align-items-center mb-3">
     <div class="text-muted small">
         <strong><?= number_format($total) ?></strong> χρήστες
@@ -56,6 +82,55 @@ $pages   = (int)ceil($total / $perPage);
     </form>
     <?php endif; ?>
 </div>
+
+<?php if (Session::isAdmin()): ?>
+<script>
+(function() {
+    const input   = document.getElementById('importAdInput');
+    const suggest = document.getElementById('importAdSuggest');
+    if (!input || !suggest) return;
+
+    let debounce;
+    input.addEventListener('input', function() {
+        clearTimeout(debounce);
+        const q = this.value.trim();
+        if (q.length < 2) { suggest.style.display = 'none'; return; }
+        debounce = setTimeout(function() {
+            fetch(APP_URL + '/api/ad/search?q=' + encodeURIComponent(q), {
+                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+            })
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                suggest.innerHTML = '';
+                if (!data.length) { suggest.style.display = 'none'; return; }
+                data.forEach(function(u) {
+                    const a = document.createElement('a');
+                    a.className = 'list-group-item list-group-item-action small py-1';
+                    a.href = '#';
+                    a.innerHTML = '<strong class="font-monospace">' + u.username + '</strong>'
+                                + ' — ' + (u.full_name || '')
+                                + (u.department ? ' <span class="text-muted">(' + u.department + ')</span>' : '');
+                    a.addEventListener('click', function(e) {
+                        e.preventDefault();
+                        input.value = u.username;
+                        suggest.style.display = 'none';
+                    });
+                    suggest.appendChild(a);
+                });
+                suggest.style.display = 'block';
+            })
+            .catch(function() { suggest.style.display = 'none'; });
+        }, 300);
+    });
+
+    document.addEventListener('click', function(e) {
+        if (!input.contains(e.target) && !suggest.contains(e.target)) {
+            suggest.style.display = 'none';
+        }
+    });
+})();
+</script>
+<?php endif; ?>
 
 <!-- User cards grid -->
 <div class="row g-3" id="usersGrid">

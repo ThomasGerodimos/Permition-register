@@ -81,6 +81,35 @@ class UserController
     }
 
     /**
+     * Import a single new user from AD into the local DB.
+     * Admin only.
+     */
+    public function importFromAd(): void
+    {
+        Middleware::requireAdmin();
+        Csrf::check();
+
+        $username = trim($_POST['username'] ?? '');
+
+        if (empty($username)) {
+            Session::flash('error', 'Δώστε username.');
+            View::redirect('/users');
+        }
+
+        $adService = new AdService();
+        $adUser    = $adService->fetchAndSync($username);
+
+        if (!$adUser) {
+            Session::flash('error', 'Ο χρήστης «' . htmlspecialchars($username) . '» δεν βρέθηκε στο Active Directory.');
+            View::redirect('/users');
+        }
+
+        $name = htmlspecialchars($adUser['full_name'] ?? $username);
+        Session::flash('success', "Ο χρήστης <strong>{$name}</strong> εισήχθη επιτυχώς από το AD.");
+        View::redirect('/users');
+    }
+
+    /**
      * Bulk AD sync — updates all local users from Active Directory.
      * Admin only.
      */

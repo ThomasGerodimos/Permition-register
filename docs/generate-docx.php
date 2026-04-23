@@ -68,7 +68,7 @@ $headerTable->addRow();
 $cell1 = $headerTable->addCell(5000);
 $cell1->addText('Μητρώο Δικαιωμάτων', ['size' => 8, 'color' => '888888', 'italic' => true], ['spaceAfter' => 0]);
 $cell2 = $headerTable->addCell(5000);
-$cell2->addText('Τεχνική Τεκμηρίωση v2.1', ['size' => 8, 'color' => '888888', 'italic' => true], ['alignment' => Jc::END, 'spaceAfter' => 0]);
+$cell2->addText('Τεχνική Τεκμηρίωση v2.2', ['size' => 8, 'color' => '888888', 'italic' => true], ['alignment' => Jc::END, 'spaceAfter' => 0]);
 
 // Footer
 $footer = $section->addFooter();
