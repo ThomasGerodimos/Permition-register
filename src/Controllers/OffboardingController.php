@@ -100,6 +100,9 @@ class OffboardingController
         $ids     = array_map('intval', array_column($permissions, 'id'));
         $updated = $permModel->bulkSetExpiry($ids, $expiresAt);
 
+        // Mark user as departed
+        $userModel->setDeparted($userId, $expiresAt);
+
         // Audit log — one entry per permission
         $audit = new AuditLog();
         $name  = $user['full_name'] ?: $user['username'];

@@ -5,15 +5,28 @@ $qs     = http_build_query(['user_id' => $user['id']]);
 ?>
 
 <div class="row mt-2 g-3">
+    <?php $isDeparted = !empty($user['departed_at']); ?>
+
     <!-- User info card -->
     <div class="col-md-4 col-xl-3">
-        <div class="card border-0 shadow-sm">
+        <div class="card border-0 shadow-sm <?= $isDeparted ? 'border-top border-danger border-3' : '' ?>">
             <div class="card-body text-center p-4">
-                <div class="rounded-circle bg-primary bg-opacity-10 mx-auto mb-3 d-flex align-items-center justify-content-center"
+                <div class="rounded-circle mx-auto mb-3 d-flex align-items-center justify-content-center
+                            <?= $isDeparted ? 'bg-secondary bg-opacity-10' : 'bg-primary bg-opacity-10' ?>"
                      style="width:80px;height:80px">
-                    <i class="bi bi-person-fill fs-1 text-primary"></i>
+                    <i class="bi <?= $isDeparted ? 'bi-person-dash-fill text-secondary' : 'bi-person-fill text-primary' ?> fs-1"></i>
                 </div>
                 <h5 class="fw-bold mb-1"><?= View::e($user['full_name'] ?: $user['username']) ?></h5>
+                <?php if ($isDeparted): ?>
+                <div class="mb-2">
+                    <span class="badge bg-danger px-3 py-1 fs-6">
+                        <i class="bi bi-door-open me-1"></i>ΑΠΟΧΩΡΗΣΕ
+                    </span>
+                    <div class="text-muted small mt-1">
+                        <?= (new DateTime($user['departed_at']))->format('d/m/Y') ?>
+                    </div>
+                </div>
+                <?php endif; ?>
                 <div class="text-muted small mb-3"><?= View::e($user['job_title'] ?? '') ?></div>
 
                 <ul class="list-unstyled text-start small">
@@ -48,6 +61,16 @@ $qs     = http_build_query(['user_id' => $user['id']]);
 
     <!-- Permissions -->
     <div class="col-md-8 col-xl-9">
+        <?php if ($isDeparted): ?>
+        <div class="alert alert-danger d-flex align-items-center gap-2 mb-3">
+            <i class="bi bi-exclamation-triangle-fill fs-5 flex-shrink-0"></i>
+            <div>
+                Ο υπάλληλος αυτός έχει <strong>αποχωρήσει</strong> από την εταιρεία
+                (<?= (new DateTime($user['departed_at']))->format('d/m/Y') ?>).
+                Τα δικαιώματά του έχουν λήξει ή λήγουν την ημερομηνία αποχώρησης.
+            </div>
+        </div>
+        <?php endif; ?>
         <div class="card border-0 shadow-sm">
             <div class="card-header bg-white border-0 pt-3 d-flex justify-content-between align-items-center">
                 <span class="fw-semibold">

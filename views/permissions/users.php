@@ -141,16 +141,25 @@ $pages   = (int)ceil($total / $perPage);
     </div>
     <?php else: ?>
     <?php foreach ($users as $u): ?>
+    <?php $dep = !empty($u['departed_at']); ?>
     <div class="col-sm-6 col-md-4 col-xl-3">
         <a href="<?= $appUrl ?>/users/<?= $u['id'] ?>" class="text-decoration-none">
-            <div class="card border-0 shadow-sm h-100 hover-shadow">
+            <div class="card border-0 shadow-sm h-100 hover-shadow <?= $dep ? 'border-top border-danger border-2' : '' ?>">
                 <div class="card-body text-center p-3">
-                    <div class="rounded-circle bg-primary bg-opacity-10 mx-auto mb-2 d-flex align-items-center justify-content-center"
+                    <div class="rounded-circle mx-auto mb-2 d-flex align-items-center justify-content-center
+                                <?= $dep ? 'bg-secondary bg-opacity-10' : 'bg-primary bg-opacity-10' ?>"
                          style="width:50px;height:50px">
-                        <i class="bi bi-person-fill text-primary"></i>
+                        <i class="bi <?= $dep ? 'bi-person-dash-fill text-secondary' : 'bi-person-fill text-primary' ?>"></i>
                     </div>
-                    <div class="fw-semibold text-dark"><?= View::e($u['full_name'] ?: $u['username']) ?></div>
+                    <div class="fw-semibold <?= $dep ? 'text-muted' : 'text-dark' ?>">
+                        <?= View::e($u['full_name'] ?: $u['username']) ?>
+                    </div>
                     <div class="text-muted small"><?= View::e($u['username']) ?></div>
+                    <?php if ($dep): ?>
+                    <span class="badge bg-danger mt-1">
+                        <i class="bi bi-door-open me-1"></i>Αποχώρησε
+                    </span>
+                    <?php else: ?>
                     <?php if (!empty($u['job_title'])): ?>
                     <div class="text-muted small"><?= View::e($u['job_title']) ?></div>
                     <?php endif; ?>
@@ -161,6 +170,7 @@ $pages   = (int)ceil($total / $perPage);
                     <div class="mt-1">
                         <span class="badge bg-primary rounded-pill"><?= $u['perm_count'] ?> δικαιώματα</span>
                     </div>
+                    <?php endif; ?>
                     <?php endif; ?>
                 </div>
             </div>

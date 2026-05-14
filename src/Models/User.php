@@ -66,6 +66,15 @@ class User
         return $this->db->fetchOne('SELECT * FROM users WHERE id = ?', [$id]);
     }
 
+    /** Mark a user as departed (set departed_at). Pass null to clear. */
+    public function setDeparted(int $userId, ?string $date): void
+    {
+        $this->db->execute(
+            'UPDATE users SET departed_at = ? WHERE id = ?',
+            [$date, $userId]
+        );
+    }
+
     /** Full-text search over local DB users (for autocomplete) */
     public function search(string $q, int $limit = 15): array
     {
