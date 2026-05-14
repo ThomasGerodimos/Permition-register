@@ -141,9 +141,11 @@ class ExportService
                 $row['notes'] ?? '',
             ], null, 'A' . $rowNum);
 
-            // Alternate row tint on non-expiry columns
+            // Alternate row tint on non-expiry columns (two separate ranges — no comma syntax)
             $rowBg = (($rowNum - $startRow) % 2 === 0) ? 'f0f7ff' : 'FFFFFF';
-            $sheet->getStyle('A' . $rowNum . ':I' . $rowNum . ',K' . $rowNum)
+            $sheet->getStyle('A' . $rowNum . ':I' . $rowNum)
+                ->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB($rowBg);
+            $sheet->getStyle('K' . $rowNum)
                 ->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB($rowBg);
 
             // Expiry cell colour
