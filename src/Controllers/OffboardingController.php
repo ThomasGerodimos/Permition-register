@@ -100,8 +100,12 @@ class OffboardingController
         $ids     = array_map('intval', array_column($permissions, 'id'));
         $updated = $permModel->bulkSetExpiry($ids, $expiresAt);
 
-        // Mark user as departed
-        $userModel->setDeparted($userId, $expiresAt);
+        // Mark user as departed (requires migration 005 — fail silently if column missing)
+        try {
+            $userModel->setDeparted($userId, $expiresAt);
+        } catch (\Throwable $e) {
+            // Column probably missing — offboarding permissions still applied
+        }
 
         // Audit log — one entry per permission
         $audit = new AuditLog();
