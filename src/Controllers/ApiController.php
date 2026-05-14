@@ -4,7 +4,7 @@ namespace App\Controllers;
 
 use App\Auth\Middleware;
 use App\Core\View;
-use App\Models\Resource;
+use App\Models\{Resource, User};
 use App\Services\AdService;
 
 class ApiController
@@ -35,6 +35,21 @@ class ApiController
         }, $resources);
 
         View::json($result);
+    }
+
+    /** GET /api/users/search?q=... — local DB user search for offboarding autocomplete */
+    public function usersSearch(): void
+    {
+        Middleware::requireAdmin();
+
+        $q = trim($_GET['q'] ?? '');
+        if (strlen($q) < 2) {
+            View::json([]);
+            return;
+        }
+
+        $userModel = new User();
+        View::json($userModel->search($q));
     }
 
     /** GET /api/resource-types/{id}/permissions */

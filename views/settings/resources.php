@@ -47,6 +47,65 @@ $isTypeAdmin = Session::isTypeAdmin();
                         <input type="date" name="expires_at" class="form-control">
                         <div class="form-text">Αφήστε κενό για χωρίς λήξη</div>
                     </div>
+
+                    <!-- Owners / Contacts -->
+                    <div class="mb-3">
+                        <button type="button" class="btn btn-sm btn-outline-secondary w-100 text-start d-flex align-items-center gap-1"
+                                data-bs-toggle="collapse" data-bs-target="#ownerSectionCreate" aria-expanded="false">
+                            <i class="bi bi-people-fill text-primary"></i>
+                            <span class="fw-semibold small">Στοιχεία Υπευθύνων</span>
+                            <i class="bi bi-chevron-down ms-auto small"></i>
+                        </button>
+                        <div class="collapse mt-2" id="ownerSectionCreate">
+                            <div class="border rounded p-2 mb-2 bg-light">
+                                <div class="small fw-semibold text-muted mb-2">
+                                    <i class="bi bi-person-vcard me-1 text-primary"></i>Υπεύθυνος ΑΚΝΕΕΔ
+                                </div>
+                                <div class="position-relative mb-1">
+                                    <div class="input-group input-group-sm">
+                                        <span class="input-group-text bg-white border-end-0">
+                                            <i class="bi bi-search text-muted"></i>
+                                        </span>
+                                        <input type="text" id="createCompanySearch"
+                                               class="form-control form-control-sm border-start-0"
+                                               placeholder="Αναζήτηση στο AD..." autocomplete="off">
+                                    </div>
+                                    <div id="createCompanySearchSuggestions"
+                                         class="list-group position-absolute shadow z-3 d-none"
+                                         style="width:100%;top:100%;left:0"></div>
+                                </div>
+                                <input type="text" name="owner_company_name" id="createOwnerCompanyName"
+                                       class="form-control form-control-sm mb-1"
+                                       placeholder="Ονοματεπώνυμο υπευθύνου">
+                                <input type="text" name="owner_company_contact" id="createOwnerCompanyContact"
+                                       class="form-control form-control-sm"
+                                       placeholder="Email / Τηλέφωνο">
+                            </div>
+                            <div class="border rounded p-2 mb-2 bg-light">
+                                <div class="small fw-semibold text-muted mb-2">
+                                    <i class="bi bi-wrench me-1 text-primary"></i>Τεχνικός Υπεύθυνος
+                                </div>
+                                <input type="text" name="owner_technical_name"
+                                       class="form-control form-control-sm mb-1"
+                                       placeholder="Ονοματεπώνυμο / Εταιρεία">
+                                <input type="text" name="owner_technical_contact"
+                                       class="form-control form-control-sm"
+                                       placeholder="Email / Τηλέφωνο">
+                            </div>
+                            <div class="border rounded p-2 bg-light">
+                                <div class="small fw-semibold text-muted mb-2">
+                                    <i class="bi bi-briefcase me-1 text-primary"></i>Επιχειρησιακός Υπεύθυνος
+                                </div>
+                                <input type="text" name="owner_business_name"
+                                       class="form-control form-control-sm mb-1"
+                                       placeholder="Ονοματεπώνυμο υπευθύνου">
+                                <input type="text" name="owner_business_contact"
+                                       class="form-control form-control-sm"
+                                       placeholder="Email / Τηλέφωνο">
+                            </div>
+                        </div>
+                    </div>
+
                     <button type="submit" class="btn btn-primary"><i class="bi bi-plus-lg"></i> Δημιουργία</button>
                 </form>
             </div>
@@ -160,6 +219,12 @@ $isTypeAdmin = Session::isTypeAdmin();
                                         data-location="<?= View::e($r['location'] ?? '') ?>"
                                         data-description="<?= View::e($r['description'] ?? '') ?>"
                                         data-expires-at="<?= View::e($r['expires_at'] ?? '') ?>"
+                                        data-owner-company-name="<?= View::e($r['owner_company_name'] ?? '') ?>"
+                                        data-owner-company-contact="<?= View::e($r['owner_company_contact'] ?? '') ?>"
+                                        data-owner-technical-name="<?= View::e($r['owner_technical_name'] ?? '') ?>"
+                                        data-owner-technical-contact="<?= View::e($r['owner_technical_contact'] ?? '') ?>"
+                                        data-owner-business-name="<?= View::e($r['owner_business_name'] ?? '') ?>"
+                                        data-owner-business-contact="<?= View::e($r['owner_business_contact'] ?? '') ?>"
                                         title="Επεξεργασία">
                                     <i class="bi bi-pencil"></i>
                                 </button>
@@ -227,7 +292,7 @@ $isTypeAdmin = Session::isTypeAdmin();
 
 <!-- Edit Resource Modal -->
 <div class="modal fade" id="editResourceModal" tabindex="-1">
-    <div class="modal-dialog">
+    <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <form method="POST" id="editResourceForm">
                 <?= Csrf::field() ?>
@@ -236,31 +301,115 @@ $isTypeAdmin = Session::isTypeAdmin();
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
-                    <div class="mb-3">
-                        <label class="form-label fw-semibold">Τύπος Πόρου <span class="text-danger">*</span></label>
-                        <select name="resource_type_id" id="editResType" class="form-select" required>
-                            <option value="">— Επιλέξτε —</option>
-                            <?php foreach ($types as $t): ?>
-                            <option value="<?= $t['id'] ?>"><?= View::e($t['label']) ?></option>
-                            <?php endforeach; ?>
-                        </select>
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">Τύπος Πόρου <span class="text-danger">*</span></label>
+                            <select name="resource_type_id" id="editResType" class="form-select" required>
+                                <option value="">— Επιλέξτε —</option>
+                                <?php foreach ($types as $t): ?>
+                                <option value="<?= $t['id'] ?>"><?= View::e($t['label']) ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">Όνομα <span class="text-danger">*</span></label>
+                            <input type="text" name="name" id="editResName" class="form-control" required>
+                        </div>
+                        <div class="col-md-8">
+                            <label class="form-label">Τοποθεσία / Path</label>
+                            <input type="text" name="location" id="editResLocation" class="form-control">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Λήξη Πόρου</label>
+                            <input type="date" name="expires_at" id="editResExpiresAt" class="form-control">
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label">Περιγραφή</label>
+                            <textarea name="description" id="editResDescription" class="form-control" rows="2"></textarea>
+                        </div>
                     </div>
-                    <div class="mb-3">
-                        <label class="form-label fw-semibold">Όνομα <span class="text-danger">*</span></label>
-                        <input type="text" name="name" id="editResName" class="form-control" required>
+
+                    <!-- Owners / Contacts -->
+                    <hr class="my-3">
+                    <div class="fw-semibold small text-muted mb-3">
+                        <i class="bi bi-people-fill me-1 text-primary"></i>Στοιχεία Υπευθύνων
                     </div>
-                    <div class="mb-3">
-                        <label class="form-label">Τοποθεσία / Path</label>
-                        <input type="text" name="location" id="editResLocation" class="form-control">
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">Περιγραφή</label>
-                        <textarea name="description" id="editResDescription" class="form-control" rows="2"></textarea>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">Λήξη Πόρου</label>
-                        <input type="date" name="expires_at" id="editResExpiresAt" class="form-control">
-                        <div class="form-text">Αφήστε κενό για χωρίς λήξη</div>
+                    <div class="row g-3">
+                        <!-- Υπεύθυνος ΑΚΝΕΕΔ -->
+                        <div class="col-12">
+                            <div class="border rounded p-3 bg-light">
+                                <div class="small fw-semibold mb-2">
+                                    <i class="bi bi-person-vcard me-1 text-primary"></i>Υπεύθυνος ΑΚΝΕΕΔ
+                                </div>
+                                <div class="position-relative mb-2">
+                                    <div class="input-group input-group-sm">
+                                        <span class="input-group-text bg-white border-end-0">
+                                            <i class="bi bi-search text-muted"></i>
+                                        </span>
+                                        <input type="text" id="editCompanySearch"
+                                               class="form-control form-control-sm border-start-0"
+                                               placeholder="Αναζήτηση στο AD..." autocomplete="off">
+                                    </div>
+                                    <div id="editCompanySearchSuggestions"
+                                         class="list-group position-absolute shadow z-3 d-none"
+                                         style="width:100%;top:100%;left:0;z-index:1055"></div>
+                                </div>
+                                <div class="row g-2">
+                                    <div class="col-md-6">
+                                        <input type="text" name="owner_company_name" id="editOwnerCompanyName"
+                                               class="form-control form-control-sm"
+                                               placeholder="Ονοματεπώνυμο">
+                                    </div>
+                                    <div class="col-md-6">
+                                        <input type="text" name="owner_company_contact" id="editOwnerCompanyContact"
+                                               class="form-control form-control-sm"
+                                               placeholder="Email / Τηλέφωνο">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <!-- Τεχνικός -->
+                        <div class="col-12">
+                            <div class="border rounded p-3 bg-light">
+                                <div class="small fw-semibold mb-2">
+                                    <i class="bi bi-wrench me-1 text-primary"></i>Τεχνικός Υπεύθυνος
+                                    <span class="text-muted fw-normal">(από πλευρά εφαρμογής / προμηθευτή)</span>
+                                </div>
+                                <div class="row g-2">
+                                    <div class="col-md-6">
+                                        <input type="text" name="owner_technical_name" id="editOwnerTechnicalName"
+                                               class="form-control form-control-sm"
+                                               placeholder="Ονοματεπώνυμο / Εταιρεία">
+                                    </div>
+                                    <div class="col-md-6">
+                                        <input type="text" name="owner_technical_contact" id="editOwnerTechnicalContact"
+                                               class="form-control form-control-sm"
+                                               placeholder="Email / Τηλέφωνο">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <!-- Επιχειρησιακός -->
+                        <div class="col-12">
+                            <div class="border rounded p-3 bg-light">
+                                <div class="small fw-semibold mb-2">
+                                    <i class="bi bi-briefcase me-1 text-primary"></i>Επιχειρησιακός Υπεύθυνος
+                                    <span class="text-muted fw-normal">(business owner)</span>
+                                </div>
+                                <div class="row g-2">
+                                    <div class="col-md-6">
+                                        <input type="text" name="owner_business_name" id="editOwnerBusinessName"
+                                               class="form-control form-control-sm"
+                                               placeholder="Ονοματεπώνυμο">
+                                    </div>
+                                    <div class="col-md-6">
+                                        <input type="text" name="owner_business_contact" id="editOwnerBusinessContact"
+                                               class="form-control form-control-sm"
+                                               placeholder="Email / Τηλέφωνο">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -390,6 +539,60 @@ document.addEventListener('DOMContentLoaded', function() {
 
     bindPaginationLinks();
 
+    // ── AD autocomplete για Εταιρικό Υπεύθυνο ───────────────────────────────
+    function initAdOwnerSearch(searchId, nameId, contactId) {
+        var searchEl = document.getElementById(searchId);
+        var nameEl   = document.getElementById(nameId);
+        var dropEl   = document.getElementById(searchId + 'Suggestions');
+        if (!searchEl || !nameEl || !dropEl) return;
+        var contEl = contactId ? document.getElementById(contactId) : null;
+        var timer;
+
+        searchEl.addEventListener('input', function() {
+            clearTimeout(timer);
+            var q = searchEl.value.trim();
+            if (q.length < 2) { dropEl.classList.add('d-none'); dropEl.innerHTML = ''; return; }
+
+            timer = setTimeout(function() {
+                fetch(APP_URL + '/api/ad/search?q=' + encodeURIComponent(q), {
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                })
+                .then(function(r) { return r.json(); })
+                .then(function(data) {
+                    dropEl.innerHTML = '';
+                    if (!data.length) { dropEl.classList.add('d-none'); return; }
+                    data.forEach(function(u) {
+                        var item = document.createElement('a');
+                        item.href      = '#';
+                        item.className = 'list-group-item list-group-item-action py-1 small';
+                        item.innerHTML = '<strong>' + esc(u.full_name) + '</strong>'
+                            + ' <span class="text-muted ms-1">' + esc(u.username) + '</span>'
+                            + (u.email ? ' <span class="text-muted ms-1">&middot; ' + esc(u.email) + '</span>' : '');
+                        item.addEventListener('click', function(e) {
+                            e.preventDefault();
+                            nameEl.value  = u.full_name || '';
+                            if (contEl)   contEl.value = u.email || u.phone || '';
+                            searchEl.value = '';
+                            dropEl.classList.add('d-none');
+                        });
+                        dropEl.appendChild(item);
+                    });
+                    dropEl.classList.remove('d-none');
+                })
+                .catch(function() { dropEl.classList.add('d-none'); });
+            }, 300);
+        });
+
+        document.addEventListener('click', function(e) {
+            if (!dropEl.contains(e.target) && e.target !== searchEl) {
+                dropEl.classList.add('d-none');
+            }
+        });
+    }
+
+    initAdOwnerSearch('createCompanySearch', 'createOwnerCompanyName', 'createOwnerCompanyContact');
+    initAdOwnerSearch('editCompanySearch',   'editOwnerCompanyName',   'editOwnerCompanyContact');
+
     // Edit resource modal (event delegation for AJAX compatibility)
     document.addEventListener('click', function(e) {
         var btn = e.target.closest('.btn-edit-resource');
@@ -401,6 +604,13 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('editResLocation').value    = btn.dataset.location;
         document.getElementById('editResDescription').value = btn.dataset.description;
         document.getElementById('editResExpiresAt').value   = btn.dataset.expiresAt || '';
+
+        document.getElementById('editOwnerCompanyName').value      = btn.dataset.ownerCompanyName      || '';
+        document.getElementById('editOwnerCompanyContact').value   = btn.dataset.ownerCompanyContact   || '';
+        document.getElementById('editOwnerTechnicalName').value    = btn.dataset.ownerTechnicalName    || '';
+        document.getElementById('editOwnerTechnicalContact').value = btn.dataset.ownerTechnicalContact || '';
+        document.getElementById('editOwnerBusinessName').value     = btn.dataset.ownerBusinessName     || '';
+        document.getElementById('editOwnerBusinessContact').value  = btn.dataset.ownerBusinessContact  || '';
 
         var modal = new bootstrap.Modal(document.getElementById('editResourceModal'));
         modal.show();

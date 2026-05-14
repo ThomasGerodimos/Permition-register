@@ -5,9 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="app-url" content="<?= \App\Core\Config::appUrl() ?>">
     <title><?= \App\Core\View::e($pageTitle ?? 'Μητρώο Δικαιωμάτων') ?> — Μητρώο Δικαιωμάτων</title>
-    <link rel="icon" type="image/png" sizes="32x32" href="<?= \App\Core\Config::appUrl() ?>/assets/images/favicon-32.png">
-    <link rel="icon" type="image/png" sizes="16x16" href="<?= \App\Core\Config::appUrl() ?>/assets/images/favicon-16.png">
-    <link rel="apple-touch-icon" sizes="180x180" href="<?= \App\Core\Config::appUrl() ?>/assets/images/favicon.png">
+	<link rel="icon" type="image/png" href="<?= \App\Core\Config::appUrl() ?>/assets/images/logo.png">
     <!-- Bootstrap 5 -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <!-- Bootstrap Icons -->
@@ -65,6 +63,11 @@ $role   = Session::role();
             <li>
                 <a href="<?= $appUrl ?>/audit" class="nav-link text-white <?= str_contains($_SERVER['REQUEST_URI'],'/audit') ? 'active' : '' ?>">
                     <i class="bi bi-clock-history me-2"></i> Ιστορικό
+                </a>
+            </li>
+            <li>
+                <a href="<?= $appUrl ?>/offboarding" class="nav-link text-white <?= str_contains($_SERVER['REQUEST_URI'],'/offboarding') ? 'active' : '' ?>">
+                    <i class="bi bi-person-dash-fill me-2"></i> Αποχώρηση
                 </a>
             </li>
             <?php endif; ?>

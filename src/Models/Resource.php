@@ -69,8 +69,9 @@ class Resource
         }
         if (!empty($filters['search'])) {
             $term         = '%' . $filters['search'] . '%';
-            $conditions[] = '(r.name LIKE ? OR r.description LIKE ? OR r.location LIKE ? OR rt.label LIKE ?)';
-            $params       = array_merge($params, [$term, $term, $term, $term]);
+            $conditions[] = '(r.name LIKE ? OR r.description LIKE ? OR r.location LIKE ? OR rt.label LIKE ?
+                              OR r.owner_company_name LIKE ? OR r.owner_technical_name LIKE ? OR r.owner_business_name LIKE ?)';
+            $params       = array_merge($params, [$term, $term, $term, $term, $term, $term, $term]);
         }
 
         $where = 'WHERE ' . implode(' AND ', $conditions);
@@ -115,13 +116,24 @@ class Resource
     public function create(array $data): int
     {
         return $this->db->insert(
-            'INSERT INTO resources (resource_type_id, name, description, location, expires_at) VALUES (?, ?, ?, ?, ?)',
+            'INSERT INTO resources
+               (resource_type_id, name, description, location, expires_at,
+                owner_company_name, owner_company_contact,
+                owner_technical_name, owner_technical_contact,
+                owner_business_name, owner_business_contact)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
             [
                 $data['resource_type_id'],
                 $data['name'],
-                $data['description'] ?? null,
-                $data['location'] ?? null,
-                !empty($data['expires_at']) ? $data['expires_at'] : null,
+                $data['description']          ?? null,
+                $data['location']             ?? null,
+                !empty($data['expires_at'])   ? $data['expires_at'] : null,
+                $data['owner_company_name']      ?: null,
+                $data['owner_company_contact']   ?: null,
+                $data['owner_technical_name']    ?: null,
+                $data['owner_technical_contact'] ?: null,
+                $data['owner_business_name']     ?: null,
+                $data['owner_business_contact']  ?: null,
             ]
         );
     }
@@ -129,13 +141,24 @@ class Resource
     public function update(int $id, array $data): void
     {
         $this->db->execute(
-            'UPDATE resources SET resource_type_id=?, name=?, description=?, location=?, expires_at=? WHERE id=?',
+            'UPDATE resources SET
+               resource_type_id=?, name=?, description=?, location=?, expires_at=?,
+               owner_company_name=?, owner_company_contact=?,
+               owner_technical_name=?, owner_technical_contact=?,
+               owner_business_name=?, owner_business_contact=?
+             WHERE id=?',
             [
                 $data['resource_type_id'],
                 $data['name'],
-                $data['description'] ?? null,
-                $data['location'] ?? null,
-                !empty($data['expires_at']) ? $data['expires_at'] : null,
+                $data['description']          ?? null,
+                $data['location']             ?? null,
+                !empty($data['expires_at'])   ? $data['expires_at'] : null,
+                $data['owner_company_name']      ?: null,
+                $data['owner_company_contact']   ?: null,
+                $data['owner_technical_name']    ?: null,
+                $data['owner_technical_contact'] ?: null,
+                $data['owner_business_name']     ?: null,
+                $data['owner_business_contact']  ?: null,
                 $id,
             ]
         );

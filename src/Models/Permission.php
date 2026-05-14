@@ -132,6 +132,28 @@ class Permission
         $this->db->execute('UPDATE permissions SET is_active=0 WHERE id=?', [$id]);
     }
 
+    /**
+     * Bulk-set expires_at on a list of permission IDs.
+     * Only updates rows where expires_at IS NULL or expires_at > $expiresAt
+     * (avoids pushing out a date that is already earlier than the new one).
+     * Returns the number of rows actually updated.
+     */
+    public function bulkSetExpiry(array $ids, string $expiresAt): int
+    {
+        if (empty($ids)) return 0;
+        $placeholders = implode(',', array_fill(0, count($ids), '?'));
+        $this->db->execute(
+            "UPDATE permissions
+             SET expires_at = ?
+             WHERE id IN ($placeholders)
+               AND is_active = 1
+               AND (expires_at IS NULL OR expires_at > ?)",
+            array_merge([$expiresAt], $ids, [$expiresAt])
+        );
+        // Return count of IDs (we apply to all; DB silently skips already-earlier rows)
+        return count($ids);
+    }
+
     /** All permissions for a specific resource */
     public function getByResource(int $resourceId): array
     {

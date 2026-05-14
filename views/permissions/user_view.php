@@ -2,18 +2,72 @@
 use App\Core\{View, Session, Csrf, Config};
 $appUrl = Config::appUrl();
 $qs     = http_build_query(['user_id' => $user['id']]);
+
+/**
+ * Renders a visual badge for a permission expiry date.
+ * @param string|null $expiresAt   ISO date of the permission expiry
+ * @param string|null $departedAt  ISO date of user departure (to add door icon)
+ */
+function expiryBadge(?string $expiresAt, ?string $departedAt = null): string
+{
+    if (!$expiresAt) {
+        return '<span class="text-muted">—</span>';
+    }
+
+    $exp  = new DateTime(substr($expiresAt, 0, 10));
+    $now  = new DateTime('today');
+    $diff = (int)$now->diff($exp)->format('%r%a'); // negative = already past
+    $date = $exp->format('d/m/Y');
+
+    // Mark if this expiry was set by the offboarding process
+    $isDeparture = $departedAt !== null
+        && substr($expiresAt, 0, 10) === substr($departedAt, 0, 10);
+    $deptIcon = $isDeparture
+        ? ' <i class="bi bi-door-open" title="Ορίστηκε κατά την αποχώρηση"></i>'
+        : '';
+
+    if ($diff < 0) {
+        return '<span class="badge bg-danger">'
+             . '<i class="bi bi-x-circle me-1"></i>' . $date . $deptIcon . '</span>';
+    }
+    if ($diff === 0) {
+        return '<span class="badge bg-danger">'
+             . '<i class="bi bi-exclamation-circle me-1"></i>Σήμερα' . $deptIcon . '</span>';
+    }
+    if ($diff <= 14) {
+        return '<span class="badge bg-warning text-dark">'
+             . '<i class="bi bi-exclamation-triangle me-1"></i>' . $date . $deptIcon . '</span>';
+    }
+    if ($diff <= 60) {
+        return '<span class="badge bg-warning text-dark bg-opacity-75">' . $date . $deptIcon . '</span>';
+    }
+    return '<span class="text-muted small">' . $date . $deptIcon . '</span>';
+}
 ?>
 
 <div class="row mt-2 g-3">
+    <?php $isDeparted = !empty($user['departed_at']); ?>
+
     <!-- User info card -->
     <div class="col-md-4 col-xl-3">
-        <div class="card border-0 shadow-sm">
+        <div class="card border-0 shadow-sm <?= $isDeparted ? 'border-top border-danger border-3' : '' ?>">
             <div class="card-body text-center p-4">
-                <div class="rounded-circle bg-primary bg-opacity-10 mx-auto mb-3 d-flex align-items-center justify-content-center"
+                <div class="rounded-circle mx-auto mb-3 d-flex align-items-center justify-content-center
+                            <?= $isDeparted ? 'bg-secondary bg-opacity-10' : 'bg-primary bg-opacity-10' ?>"
                      style="width:80px;height:80px">
-                    <i class="bi bi-person-fill fs-1 text-primary"></i>
+                    <i class="bi <?= $isDeparted ? 'bi-person-dash-fill text-secondary' : 'bi-person-fill text-primary' ?> fs-1"></i>
                 </div>
                 <h5 class="fw-bold mb-1"><?= View::e($user['full_name'] ?: $user['username']) ?></h5>
+                <?php if ($isDeparted): ?>
+                <div class="mb-2">
+                    <span class="badge bg-danger px-3 py-1 fs-6">
+                        <i class="bi bi-door-open me-1"></i>ΑΠΟΧΩΡΗΣΕ
+                    </span>
+                    <div class="text-muted small mt-1">
+                        <?= (new DateTime($user['departed_at']))->format('d/m/Y') ?>
+                    </div>
+                </div>
+                <?php endif; ?>
                 <div class="text-muted small mb-3"><?= View::e($user['job_title'] ?? '') ?></div>
 
                 <ul class="list-unstyled text-start small">
@@ -48,6 +102,16 @@ $qs     = http_build_query(['user_id' => $user['id']]);
 
     <!-- Permissions -->
     <div class="col-md-8 col-xl-9">
+        <?php if ($isDeparted): ?>
+        <div class="alert alert-danger d-flex align-items-center gap-2 mb-3">
+            <i class="bi bi-exclamation-triangle-fill fs-5 flex-shrink-0"></i>
+            <div>
+                Ο υπάλληλος αυτός έχει <strong>αποχωρήσει</strong> από την εταιρεία
+                (<?= (new DateTime($user['departed_at']))->format('d/m/Y') ?>).
+                Τα δικαιώματά του έχουν λήξει ή λήγουν την ημερομηνία αποχώρησης.
+            </div>
+        </div>
+        <?php endif; ?>
         <div class="card border-0 shadow-sm">
             <div class="card-header bg-white border-0 pt-3 d-flex justify-content-between align-items-center">
                 <span class="fw-semibold">
@@ -103,13 +167,26 @@ $qs     = http_build_query(['user_id' => $user['id']]);
                         </thead>
                         <tbody>
                         <?php foreach ($perms as $p): ?>
-                        <tr>
+                        <?php
+                        // Dim the row if user has departed AND this permission is expired/at-departure
+                        $rowClass = '';
+                        if ($isDeparted && $p['expires_at']) {
+                            $expDt = new DateTime(substr($p['expires_at'], 0, 10));
+                            if ($expDt <= new DateTime('today')) {
+                                $rowClass = 'table-light text-decoration-none opacity-75';
+                            }
+                        }
+                        ?>
+                        <tr class="<?= $rowClass ?>">
                             <td><?= View::e($p['resource_name']) ?></td>
                             <td><span class="badge bg-primary"><?= View::e($p['permission_level']) ?></span></td>
                             <td class="text-muted small"><?= View::e($p['granted_by_name'] ?? '—') ?></td>
                             <td class="text-muted small"><?= substr($p['granted_at'],0,10) ?></td>
-                            <td class="text-muted small">
-                                <?= $p['expires_at'] ? substr($p['expires_at'],0,10) : '—' ?>
+                            <td class="small">
+                                <?= expiryBadge(
+                                    $p['expires_at'],
+                                    $isDeparted ? $user['departed_at'] : null
+                                ) ?>
                             </td>
                             <?php if (Session::isAdmin() || Session::isTypeAdmin((int)($p['resource_type_id'] ?? 0))): ?>
                             <td class="text-nowrap">
