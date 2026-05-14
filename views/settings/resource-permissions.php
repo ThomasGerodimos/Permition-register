@@ -39,6 +39,41 @@ $canEdit = Session::isAdmin() || Session::isTypeAdmin((int)($resource['resource_
                     </span>
                     <?php endif; ?>
                 </div>
+                <?php
+                $hasOwners = !empty($resource['owner_company_name'])
+                          || !empty($resource['owner_technical_name'])
+                          || !empty($resource['owner_business_name']);
+                if ($hasOwners): ?>
+                <div class="d-flex gap-4 small flex-wrap mt-2 pt-2 border-top">
+                    <?php if (!empty($resource['owner_company_name'])): ?>
+                    <span>
+                        <span class="badge bg-secondary bg-opacity-25 text-secondary fw-normal me-1">Εταιρικός</span>
+                        <strong><?= View::e($resource['owner_company_name']) ?></strong>
+                        <?php if (!empty($resource['owner_company_contact'])): ?>
+                        <span class="text-muted ms-1">&middot; <?= View::e($resource['owner_company_contact']) ?></span>
+                        <?php endif; ?>
+                    </span>
+                    <?php endif; ?>
+                    <?php if (!empty($resource['owner_technical_name'])): ?>
+                    <span>
+                        <span class="badge bg-info bg-opacity-25 text-info-emphasis fw-normal me-1">Τεχνικός</span>
+                        <strong><?= View::e($resource['owner_technical_name']) ?></strong>
+                        <?php if (!empty($resource['owner_technical_contact'])): ?>
+                        <span class="text-muted ms-1">&middot; <?= View::e($resource['owner_technical_contact']) ?></span>
+                        <?php endif; ?>
+                    </span>
+                    <?php endif; ?>
+                    <?php if (!empty($resource['owner_business_name'])): ?>
+                    <span>
+                        <span class="badge bg-success bg-opacity-25 text-success-emphasis fw-normal me-1">Επιχειρησιακός</span>
+                        <strong><?= View::e($resource['owner_business_name']) ?></strong>
+                        <?php if (!empty($resource['owner_business_contact'])): ?>
+                        <span class="text-muted ms-1">&middot; <?= View::e($resource['owner_business_contact']) ?></span>
+                        <?php endif; ?>
+                    </span>
+                    <?php endif; ?>
+                </div>
+                <?php endif; ?>
             </div>
             <div class="d-flex gap-2">
                 <?php if (!empty($permissions) && $canEdit): ?>

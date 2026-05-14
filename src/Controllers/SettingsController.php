@@ -236,11 +236,17 @@ class SettingsController
         Csrf::check();
 
         $data = [
-            'resource_type_id' => $typeId,
-            'name'             => trim($_POST['name']        ?? ''),
-            'description'      => trim($_POST['description'] ?? ''),
-            'location'         => trim($_POST['location']    ?? ''),
-            'expires_at'       => trim($_POST['expires_at']  ?? ''),
+            'resource_type_id'       => $typeId,
+            'name'                   => trim($_POST['name']        ?? ''),
+            'description'            => trim($_POST['description'] ?? ''),
+            'location'               => trim($_POST['location']    ?? ''),
+            'expires_at'             => trim($_POST['expires_at']  ?? ''),
+            'owner_company_name'      => trim($_POST['owner_company_name']      ?? ''),
+            'owner_company_contact'   => trim($_POST['owner_company_contact']   ?? ''),
+            'owner_technical_name'    => trim($_POST['owner_technical_name']    ?? ''),
+            'owner_technical_contact' => trim($_POST['owner_technical_contact'] ?? ''),
+            'owner_business_name'     => trim($_POST['owner_business_name']     ?? ''),
+            'owner_business_contact'  => trim($_POST['owner_business_contact']  ?? ''),
         ];
 
         if (empty($data['name']) || empty($data['resource_type_id'])) {
@@ -278,11 +284,17 @@ class SettingsController
         Middleware::requirePermissionEditor((int)$old['resource_type_id']);
 
         $data = [
-            'resource_type_id' => (int)($_POST['resource_type_id'] ?? 0),
-            'name'             => trim($_POST['name']        ?? ''),
-            'description'      => trim($_POST['description'] ?? ''),
-            'location'         => trim($_POST['location']    ?? ''),
-            'expires_at'       => trim($_POST['expires_at']  ?? ''),
+            'resource_type_id'        => (int)($_POST['resource_type_id'] ?? 0),
+            'name'                    => trim($_POST['name']        ?? ''),
+            'description'             => trim($_POST['description'] ?? ''),
+            'location'                => trim($_POST['location']    ?? ''),
+            'expires_at'              => trim($_POST['expires_at']  ?? ''),
+            'owner_company_name'      => trim($_POST['owner_company_name']      ?? ''),
+            'owner_company_contact'   => trim($_POST['owner_company_contact']   ?? ''),
+            'owner_technical_name'    => trim($_POST['owner_technical_name']    ?? ''),
+            'owner_technical_contact' => trim($_POST['owner_technical_contact'] ?? ''),
+            'owner_business_name'     => trim($_POST['owner_business_name']     ?? ''),
+            'owner_business_contact'  => trim($_POST['owner_business_contact']  ?? ''),
         ];
 
         if (empty($data['name']) || empty($data['resource_type_id'])) {
