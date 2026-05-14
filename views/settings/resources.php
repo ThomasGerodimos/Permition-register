@@ -61,10 +61,23 @@ $isTypeAdmin = Session::isTypeAdmin();
                                 <div class="small fw-semibold text-muted mb-2">
                                     <i class="bi bi-person-vcard me-1 text-primary"></i>Εταιρικός Υπεύθυνος
                                 </div>
-                                <input type="text" name="owner_company_name"
+                                <div class="position-relative mb-1">
+                                    <div class="input-group input-group-sm">
+                                        <span class="input-group-text bg-white border-end-0">
+                                            <i class="bi bi-search text-muted"></i>
+                                        </span>
+                                        <input type="text" id="createCompanySearch"
+                                               class="form-control form-control-sm border-start-0"
+                                               placeholder="Αναζήτηση στο AD..." autocomplete="off">
+                                    </div>
+                                    <div id="createCompanySearchSuggestions"
+                                         class="list-group position-absolute shadow z-3 d-none"
+                                         style="width:100%;top:100%;left:0"></div>
+                                </div>
+                                <input type="text" name="owner_company_name" id="createOwnerCompanyName"
                                        class="form-control form-control-sm mb-1"
                                        placeholder="Ονοματεπώνυμο υπευθύνου">
-                                <input type="text" name="owner_company_contact"
+                                <input type="text" name="owner_company_contact" id="createOwnerCompanyContact"
                                        class="form-control form-control-sm"
                                        placeholder="Email / Τηλέφωνο">
                             </div>
@@ -329,6 +342,19 @@ $isTypeAdmin = Session::isTypeAdmin();
                                     <i class="bi bi-person-vcard me-1 text-primary"></i>Εταιρικός Υπεύθυνος
                                     <span class="text-muted fw-normal">(εσωτερικός υπεύθυνος διαχείρισης)</span>
                                 </div>
+                                <div class="position-relative mb-2">
+                                    <div class="input-group input-group-sm">
+                                        <span class="input-group-text bg-white border-end-0">
+                                            <i class="bi bi-search text-muted"></i>
+                                        </span>
+                                        <input type="text" id="editCompanySearch"
+                                               class="form-control form-control-sm border-start-0"
+                                               placeholder="Αναζήτηση στο AD..." autocomplete="off">
+                                    </div>
+                                    <div id="editCompanySearchSuggestions"
+                                         class="list-group position-absolute shadow z-3 d-none"
+                                         style="width:100%;top:100%;left:0;z-index:1055"></div>
+                                </div>
                                 <div class="row g-2">
                                     <div class="col-md-6">
                                         <input type="text" name="owner_company_name" id="editOwnerCompanyName"
@@ -513,6 +539,60 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     bindPaginationLinks();
+
+    // ── AD autocomplete για Εταιρικό Υπεύθυνο ───────────────────────────────
+    function initAdOwnerSearch(searchId, nameId, contactId) {
+        var searchEl = document.getElementById(searchId);
+        var nameEl   = document.getElementById(nameId);
+        var dropEl   = document.getElementById(searchId + 'Suggestions');
+        if (!searchEl || !nameEl || !dropEl) return;
+        var contEl = contactId ? document.getElementById(contactId) : null;
+        var timer;
+
+        searchEl.addEventListener('input', function() {
+            clearTimeout(timer);
+            var q = searchEl.value.trim();
+            if (q.length < 2) { dropEl.classList.add('d-none'); dropEl.innerHTML = ''; return; }
+
+            timer = setTimeout(function() {
+                fetch(APP_URL + '/api/ad/search?q=' + encodeURIComponent(q), {
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                })
+                .then(function(r) { return r.json(); })
+                .then(function(data) {
+                    dropEl.innerHTML = '';
+                    if (!data.length) { dropEl.classList.add('d-none'); return; }
+                    data.forEach(function(u) {
+                        var item = document.createElement('a');
+                        item.href      = '#';
+                        item.className = 'list-group-item list-group-item-action py-1 small';
+                        item.innerHTML = '<strong>' + esc(u.full_name) + '</strong>'
+                            + ' <span class="text-muted ms-1">' + esc(u.username) + '</span>'
+                            + (u.email ? ' <span class="text-muted ms-1">&middot; ' + esc(u.email) + '</span>' : '');
+                        item.addEventListener('click', function(e) {
+                            e.preventDefault();
+                            nameEl.value  = u.full_name || '';
+                            if (contEl)   contEl.value = u.email || u.phone || '';
+                            searchEl.value = '';
+                            dropEl.classList.add('d-none');
+                        });
+                        dropEl.appendChild(item);
+                    });
+                    dropEl.classList.remove('d-none');
+                })
+                .catch(function() { dropEl.classList.add('d-none'); });
+            }, 300);
+        });
+
+        document.addEventListener('click', function(e) {
+            if (!dropEl.contains(e.target) && e.target !== searchEl) {
+                dropEl.classList.add('d-none');
+            }
+        });
+    }
+
+    initAdOwnerSearch('createCompanySearch', 'createOwnerCompanyName', 'createOwnerCompanyContact');
+    initAdOwnerSearch('editCompanySearch',   'editOwnerCompanyName',   'editOwnerCompanyContact');
 
     // Edit resource modal (event delegation for AJAX compatibility)
     document.addEventListener('click', function(e) {
