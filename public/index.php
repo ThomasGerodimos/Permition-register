@@ -22,7 +22,8 @@ use App\Controllers\{
     ExportController,
     EmailController,
     SettingsController,
-    ApiController
+    ApiController,
+    OffboardingController
 };
 
 // Config
@@ -115,9 +116,15 @@ $router->get('/impersonate/stop',   [DashboardController::class, 'impersonateSto
 // Documentation download (admin only)
 $router->get('/docs/DOCUMENTATION.docx', [SettingsController::class, 'downloadDoc']);
 
+// Offboarding
+$router->get('/offboarding',         [OffboardingController::class, 'index']);
+$router->get('/offboarding/preview', [OffboardingController::class, 'preview']);
+$router->post('/offboarding/apply',  [OffboardingController::class, 'apply']);
+
 // AJAX API endpoints
-$router->get('/api/ad/search',           [ApiController::class, 'adSearch']);
-$router->get('/api/resources-by-type/{id}',           [ApiController::class, 'resourcesByType']);
+$router->get('/api/ad/search',                       [ApiController::class, 'adSearch']);
+$router->get('/api/users/search',                    [ApiController::class, 'usersSearch']);
+$router->get('/api/resources-by-type/{id}',          [ApiController::class, 'resourcesByType']);
 $router->get('/api/resource-types/{id}/permissions', [ApiController::class, 'resourceTypePermissions']);
 
 // ── Dispatch ──────────────────────────────────────────────────────────────────

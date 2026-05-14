@@ -66,6 +66,21 @@ class User
         return $this->db->fetchOne('SELECT * FROM users WHERE id = ?', [$id]);
     }
 
+    /** Full-text search over local DB users (for autocomplete) */
+    public function search(string $q, int $limit = 15): array
+    {
+        $term = '%' . $q . '%';
+        return $this->db->fetchAll(
+            "SELECT id, username, full_name, email, department, job_title
+             FROM users
+             WHERE is_active = 1
+               AND (full_name LIKE ? OR username LIKE ? OR email LIKE ? OR department LIKE ?)
+             ORDER BY full_name
+             LIMIT $limit",
+            [$term, $term, $term, $term]
+        );
+    }
+
     public function findByUsername(string $username): array|false
     {
         return $this->db->fetchOne('SELECT * FROM users WHERE username = ?', [$username]);

@@ -65,6 +65,11 @@ $role   = Session::role();
                     <i class="bi bi-clock-history me-2"></i> Ιστορικό
                 </a>
             </li>
+            <li>
+                <a href="<?= $appUrl ?>/offboarding" class="nav-link text-white <?= str_contains($_SERVER['REQUEST_URI'],'/offboarding') ? 'active' : '' ?>">
+                    <i class="bi bi-person-dash-fill me-2"></i> Αποχώρηση
+                </a>
+            </li>
             <?php endif; ?>
             <?php if ($role === 'admin' || Session::isTypeAdmin()): ?>
             <li>
