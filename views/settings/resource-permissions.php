@@ -47,7 +47,7 @@ $canEdit = Session::isAdmin() || Session::isTypeAdmin((int)($resource['resource_
                 <div class="d-flex gap-4 small flex-wrap mt-2 pt-2 border-top">
                     <?php if (!empty($resource['owner_company_name'])): ?>
                     <span>
-                        <span class="badge bg-secondary bg-opacity-25 text-secondary fw-normal me-1">Εταιρικός</span>
+                        <span class="badge bg-secondary bg-opacity-25 text-secondary fw-normal me-1">ΑΚΝΕΕΔ</span>
                         <strong><?= View::e($resource['owner_company_name']) ?></strong>
                         <?php if (!empty($resource['owner_company_contact'])): ?>
                         <span class="text-muted ms-1">&middot; <?= View::e($resource['owner_company_contact']) ?></span>

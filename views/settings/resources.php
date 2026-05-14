@@ -59,7 +59,7 @@ $isTypeAdmin = Session::isTypeAdmin();
                         <div class="collapse mt-2" id="ownerSectionCreate">
                             <div class="border rounded p-2 mb-2 bg-light">
                                 <div class="small fw-semibold text-muted mb-2">
-                                    <i class="bi bi-person-vcard me-1 text-primary"></i>Εταιρικός Υπεύθυνος
+                                    <i class="bi bi-person-vcard me-1 text-primary"></i>Υπεύθυνος ΑΚΝΕΕΔ
                                 </div>
                                 <div class="position-relative mb-1">
                                     <div class="input-group input-group-sm">
@@ -335,12 +335,11 @@ $isTypeAdmin = Session::isTypeAdmin();
                         <i class="bi bi-people-fill me-1 text-primary"></i>Στοιχεία Υπευθύνων
                     </div>
                     <div class="row g-3">
-                        <!-- Εταιρικός -->
+                        <!-- Υπεύθυνος ΑΚΝΕΕΔ -->
                         <div class="col-12">
                             <div class="border rounded p-3 bg-light">
                                 <div class="small fw-semibold mb-2">
-                                    <i class="bi bi-person-vcard me-1 text-primary"></i>Εταιρικός Υπεύθυνος
-                                    <span class="text-muted fw-normal">(εσωτερικός υπεύθυνος διαχείρισης)</span>
+                                    <i class="bi bi-person-vcard me-1 text-primary"></i>Υπεύθυνος ΑΚΝΕΕΔ
                                 </div>
                                 <div class="position-relative mb-2">
                                     <div class="input-group input-group-sm">
