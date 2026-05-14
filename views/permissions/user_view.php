@@ -2,6 +2,47 @@
 use App\Core\{View, Session, Csrf, Config};
 $appUrl = Config::appUrl();
 $qs     = http_build_query(['user_id' => $user['id']]);
+
+/**
+ * Renders a visual badge for a permission expiry date.
+ * @param string|null $expiresAt   ISO date of the permission expiry
+ * @param string|null $departedAt  ISO date of user departure (to add door icon)
+ */
+function expiryBadge(?string $expiresAt, ?string $departedAt = null): string
+{
+    if (!$expiresAt) {
+        return '<span class="text-muted">—</span>';
+    }
+
+    $exp  = new DateTime(substr($expiresAt, 0, 10));
+    $now  = new DateTime('today');
+    $diff = (int)$now->diff($exp)->format('%r%a'); // negative = already past
+    $date = $exp->format('d/m/Y');
+
+    // Mark if this expiry was set by the offboarding process
+    $isDeparture = $departedAt !== null
+        && substr($expiresAt, 0, 10) === substr($departedAt, 0, 10);
+    $deptIcon = $isDeparture
+        ? ' <i class="bi bi-door-open" title="Ορίστηκε κατά την αποχώρηση"></i>'
+        : '';
+
+    if ($diff < 0) {
+        return '<span class="badge bg-danger">'
+             . '<i class="bi bi-x-circle me-1"></i>' . $date . $deptIcon . '</span>';
+    }
+    if ($diff === 0) {
+        return '<span class="badge bg-danger">'
+             . '<i class="bi bi-exclamation-circle me-1"></i>Σήμερα' . $deptIcon . '</span>';
+    }
+    if ($diff <= 14) {
+        return '<span class="badge bg-warning text-dark">'
+             . '<i class="bi bi-exclamation-triangle me-1"></i>' . $date . $deptIcon . '</span>';
+    }
+    if ($diff <= 60) {
+        return '<span class="badge bg-warning text-dark bg-opacity-75">' . $date . $deptIcon . '</span>';
+    }
+    return '<span class="text-muted small">' . $date . $deptIcon . '</span>';
+}
 ?>
 
 <div class="row mt-2 g-3">
@@ -126,13 +167,26 @@ $qs     = http_build_query(['user_id' => $user['id']]);
                         </thead>
                         <tbody>
                         <?php foreach ($perms as $p): ?>
-                        <tr>
+                        <?php
+                        // Dim the row if user has departed AND this permission is expired/at-departure
+                        $rowClass = '';
+                        if ($isDeparted && $p['expires_at']) {
+                            $expDt = new DateTime(substr($p['expires_at'], 0, 10));
+                            if ($expDt <= new DateTime('today')) {
+                                $rowClass = 'table-light text-decoration-none opacity-75';
+                            }
+                        }
+                        ?>
+                        <tr class="<?= $rowClass ?>">
                             <td><?= View::e($p['resource_name']) ?></td>
                             <td><span class="badge bg-primary"><?= View::e($p['permission_level']) ?></span></td>
                             <td class="text-muted small"><?= View::e($p['granted_by_name'] ?? '—') ?></td>
                             <td class="text-muted small"><?= substr($p['granted_at'],0,10) ?></td>
-                            <td class="text-muted small">
-                                <?= $p['expires_at'] ? substr($p['expires_at'],0,10) : '—' ?>
+                            <td class="small">
+                                <?= expiryBadge(
+                                    $p['expires_at'],
+                                    $isDeparted ? $user['departed_at'] : null
+                                ) ?>
                             </td>
                             <?php if (Session::isAdmin() || Session::isTypeAdmin((int)($p['resource_type_id'] ?? 0))): ?>
                             <td class="text-nowrap">
